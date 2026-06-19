@@ -49,18 +49,18 @@ export default async function CommissionsPage({
   // Get all commissions with policy and client info
   const allCommissions = await db
     .select({
-      id:           commissions.id,
-      expectedAmt:  commissions.expectedAmt,
-      receivedAmt:  commissions.receivedAmt,
-      tdsDeducted:  commissions.tdsDeducted,
-      paymentDate:  commissions.paymentDate,
-      fyYear:       commissions.fyYear,
-      quarter:      commissions.quarter,
-      status:       commissions.status,
+      id: commissions.id,
+      expectedAmt: commissions.expectedAmt,
+      receivedAmt: commissions.receivedAmt,
+      tdsDeducted: commissions.tdsDeducted,
+      paymentDate: commissions.paymentDate,
+      fyYear: commissions.fyYear,
+      quarter: commissions.quarter,
+      status: commissions.status,
       policyNumber: policies.policyNumber,
-      insurer:      policies.insurer,
-      type:         policies.type,
-      clientName:   clients.name,
+      insurer: policies.insurer,
+      type: policies.type,
+      clientName: clients.name,
     })
     .from(commissions)
     .innerJoin(policies, eq(commissions.policyId, policies.id))
@@ -79,9 +79,9 @@ export default async function CommissionsPage({
   // Summary calculations
   const totalExpected = filtered.reduce((s, c) => s + Number(c.expectedAmt || 0), 0)
   const totalReceived = filtered.reduce((s, c) => s + Number(c.receivedAmt || 0), 0)
-  const totalTDS      = filtered.reduce((s, c) => s + Number(c.tdsDeducted || 0), 0)
-  const totalShort    = totalExpected - totalReceived
-  const shortCount    = filtered.filter(c => c.status === 'short').length
+  const totalTDS = filtered.reduce((s, c) => s + Number(c.tdsDeducted || 0), 0)
+  const totalShort = totalExpected - totalReceived
+  const shortCount = filtered.filter(c => c.status === 'short').length
 
   // Current FY default
   const now = new Date()
@@ -100,13 +100,21 @@ export default async function CommissionsPage({
             Track every rupee — expected, received, and disputed
           </p>
         </div>
-        <Link
-          href="/commissions/new"
-          className="flex items-center gap-2 bg-blue-500 hover:bg-blue-600 text-white font-semibold px-4 py-2.5 rounded-lg transition-colors text-sm"
-        >
-          <Plus className="w-4 h-4" />
-          Log Commission
-        </Link>
+        <div className="flex items-center gap-3">
+          <Link
+            href="/commissions/rate-cards"
+            className="flex items-center gap-2 border border-slate-700 hover:border-slate-500 text-slate-300 hover:text-white font-semibold px-4 py-2.5 rounded-lg transition-colors text-sm"
+          >
+            Rate Cards
+          </Link>
+          <Link
+            href="/commissions/new"
+            className="flex items-center gap-2 bg-blue-500 hover:bg-blue-600 text-white font-semibold px-4 py-2.5 rounded-lg transition-colors text-sm"
+          >
+            <Plus className="w-4 h-4" />
+            Log Commission
+          </Link>
+        </div>
       </div>
 
       {/* FY Filter */}
@@ -117,11 +125,10 @@ export default async function CommissionsPage({
           </span>
           <Link
             href="/commissions"
-            className={`text-xs px-3 py-1.5 rounded-full border transition-colors ${
-              !fy
+            className={`text-xs px-3 py-1.5 rounded-full border transition-colors ${!fy
                 ? 'bg-blue-500 border-blue-500 text-white'
                 : 'border-slate-700 text-slate-400 hover:border-slate-500'
-            }`}
+              }`}
           >
             All Years
           </Link>
@@ -129,11 +136,10 @@ export default async function CommissionsPage({
             <Link
               key={year}
               href={`/commissions?fy=${year}`}
-              className={`text-xs px-3 py-1.5 rounded-full border transition-colors ${
-                fy === year
+              className={`text-xs px-3 py-1.5 rounded-full border transition-colors ${fy === year
                   ? 'bg-blue-500 border-blue-500 text-white'
                   : 'border-slate-700 text-slate-400 hover:border-slate-500'
-              }`}
+                }`}
             >
               FY {year}
             </Link>
@@ -307,8 +313,8 @@ export default async function CommissionsPage({
                       <td className="px-5 py-3 text-slate-400 text-sm">
                         {commission.paymentDate
                           ? new Date(commission.paymentDate).toLocaleDateString('en-IN', {
-                              day: 'numeric', month: 'short', year: 'numeric'
-                            })
+                            day: 'numeric', month: 'short', year: 'numeric'
+                          })
                           : '—'}
                       </td>
                       <td className="px-5 py-3">
