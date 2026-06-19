@@ -103,6 +103,26 @@ import {
     draftEmail:   text('draft_email'),
     createdAt:    timestamp('created_at').defaultNow(),
   })
+
+
+  // ─── RATE CARDS ───────────────────────────────────────────
+// Commission rates per insurer per product type
+// Agent maintains these — used for reconciliation engine
+export const rateCards = pgTable('rate_cards', {
+  id:          uuid('id').primaryKey().defaultRandom(),
+  agentId:     uuid('agent_id').notNull().references(() => agents.id, { onDelete: 'cascade' }),
+  insurer:     text('insurer').notNull(),
+  productType: text('product_type').notNull(), // health | motor | life | term | commercial
+  policyYear:  text('policy_year').notNull(),  // 1 | 2 | 3 | renewal
+  ratePct:     numeric('rate_pct', { precision: 5, scale: 2 }).notNull(),
+  effectiveFrom: date('effective_from').notNull(),
+  effectiveTo:   date('effective_to'),         // null = currently active
+  notes:       text('notes'),
+  createdAt:   timestamp('created_at').defaultNow(),
+})
+
+export type RateCard    = typeof rateCards.$inferSelect
+export type NewRateCard = typeof rateCards.$inferInsert
   
   // ─── TYPE EXPORTS ─────────────────────────────────────────
   // TypeScript types inferred from schema — use these everywhere
