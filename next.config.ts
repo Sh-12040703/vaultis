@@ -12,8 +12,11 @@ export default withSentryConfig(nextConfig, {
   project: 'vaultis',
   silent: !process.env.CI,
   widenClientFileUpload: true,
-  reactComponentAnnotation: {
-    enabled: true,
+  authToken: process.env.SENTRY_AUTH_TOKEN,
+  webpack: {
+    automaticVercelMonitors: true,
+    treeshake: {
+      removeDebugLogging: true,
+    },
   },
-  disableLogger: true,
 })
