@@ -8,6 +8,7 @@ import {
   renewals,
   commissions,
 } from './schema'
+import { eq } from 'drizzle-orm'
 
 dotenv.config({ path: '.env.local' })
 
@@ -23,6 +24,7 @@ async function seed() {
   await db.delete(renewals)
   await db.delete(policies)
   await db.delete(clients)
+  await db.delete(agents).where(eq(agents.clerkId, 'user_3EOBEVDhZzwgyg0McD8ZFczjtgn'))
   // NOTE: We do NOT delete agents — your real login account stays intact
   // The seed creates a separate "demo" agent for test data
 
@@ -31,9 +33,9 @@ async function seed() {
   const [agent] = await db
     .insert(agents)
     .values({
-      clerkId: 'seed_demo_agent',
-      name: 'Rajesh Sharma',
-      email: 'rajesh.sharma@demo.com',
+      clerkId: 'user_3EOBEVDhZzwgyg0McD8ZFczjtgn',
+      name: 'Checker check',  // your real name
+      email: 'checkchecker902@gmail.com',  // your real email
       phone: '9876543210',
       irdaiCode: 'IRDAI/AGT/MH/2019/001234',
       gstin: '27ABCDE1234F1Z5',
