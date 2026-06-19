@@ -3,7 +3,7 @@ import { db } from '@/lib/db'
 import { clients, policies } from '@/lib/db/schema'
 import { eq, count } from 'drizzle-orm'
 import Link from 'next/link'
-import { UserPlus, Phone, Mail } from 'lucide-react'
+import { UserPlus, Phone, Mail, FileSpreadsheet } from 'lucide-react'
 
 export default async function ClientsPage() {
   const agent = await getOrCreateAgent()
@@ -12,11 +12,11 @@ export default async function ClientsPage() {
   // Get all clients with their policy count
   const allClients = await db
     .select({
-      id:          clients.id,
-      name:        clients.name,
-      phone:       clients.phone,
-      email:       clients.email,
-      createdAt:   clients.createdAt,
+      id: clients.id,
+      name: clients.name,
+      phone: clients.phone,
+      email: clients.email,
+      createdAt: clients.createdAt,
       policyCount: count(policies.id),
     })
     .from(clients)
@@ -36,13 +36,31 @@ export default async function ClientsPage() {
             {allClients.length} client{allClients.length !== 1 ? 's' : ''} in your book
           </p>
         </div>
-        <Link
-          href="/clients/new"
-          className="flex items-center gap-2 bg-blue-500 hover:bg-blue-600 text-white font-semibold px-4 py-2.5 rounded-lg transition-colors text-sm"
-        >
-          <UserPlus className="w-4 h-4" />
-          Add Client
-        </Link>
+        <div className="flex items-center gap-3">
+          <Link
+            href="/clients/import"
+            className="flex items-center gap-2 border border-slate-700 hover:border-slate-500 text-slate-300 hover:text-white font-semibold px-4 py-2.5 rounded-lg transition-colors text-sm"
+          >
+            <FileSpreadsheet className="w-4 h-4" />
+            Import Excel
+          </Link>
+          <div className="flex items-center gap-3">
+            <Link
+              href="/clients/import"
+              className="flex items-center gap-2 border border-slate-700 hover:border-slate-500 text-slate-300 hover:text-white font-semibold px-4 py-2.5 rounded-lg transition-colors text-sm"
+            >
+              <FileSpreadsheet className="w-4 h-4" />
+              Import Excel
+            </Link>
+            <Link
+              href="/clients/new"
+              className="flex items-center gap-2 bg-blue-500 hover:bg-blue-600 text-white font-semibold px-4 py-2.5 rounded-lg transition-colors text-sm"
+            >
+              <UserPlus className="w-4 h-4" />
+              Add Client
+            </Link>
+          </div>
+        </div>
       </div>
 
       {/* Empty state */}
