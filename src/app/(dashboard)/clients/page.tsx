@@ -44,22 +44,13 @@ export default async function ClientsPage() {
             <FileSpreadsheet className="w-4 h-4" />
             Import Excel
           </Link>
-          <div className="flex items-center gap-3">
-            <Link
-              href="/clients/import"
-              className="flex items-center gap-2 border border-slate-700 hover:border-slate-500 text-slate-300 hover:text-white font-semibold px-4 py-2.5 rounded-lg transition-colors text-sm"
-            >
-              <FileSpreadsheet className="w-4 h-4" />
-              Import Excel
-            </Link>
-            <Link
-              href="/clients/new"
-              className="flex items-center gap-2 bg-blue-500 hover:bg-blue-600 text-white font-semibold px-4 py-2.5 rounded-lg transition-colors text-sm"
-            >
-              <UserPlus className="w-4 h-4" />
-              Add Client
-            </Link>
-          </div>
+          <Link
+            href="/clients/new"
+            className="flex items-center gap-2 bg-blue-500 hover:bg-blue-600 text-white font-semibold px-4 py-2.5 rounded-lg transition-colors text-sm"
+          >
+            <UserPlus className="w-4 h-4" />
+            Add Client
+          </Link>
         </div>
       </div>
 
