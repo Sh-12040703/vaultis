@@ -1,5 +1,6 @@
 import { UserButton } from '@clerk/nextjs'
 import SidebarNav from '@/components/sidebar-nav'
+import GlobalSearch from '@/components/global-search'
 
 export default function DashboardLayout({
   children,
@@ -20,6 +21,11 @@ export default function DashboardLayout({
             </div>
             <span className="text-white font-bold text-lg">Vaultis</span>
           </div>
+        </div>
+
+        {/* Search — ADD THIS */}
+        <div className="pt-3">
+          <GlobalSearch />
         </div>
 
         {/* Nav — client component for instant active state */}
