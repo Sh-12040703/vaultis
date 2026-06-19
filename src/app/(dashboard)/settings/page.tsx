@@ -1,6 +1,7 @@
 import { getOrCreateAgent } from '@/lib/actions/agent'
 import { updateAgentProfile } from '@/lib/actions/settings'
 import { UserCircle, Shield, Bell, CreditCard } from 'lucide-react'
+import { SubmitButton } from '@/components/ui/submit-button'
 
 export default async function SettingsPage() {
   const agent = await getOrCreateAgent()
@@ -75,12 +76,7 @@ export default async function SettingsPage() {
             </p>
           </div>
 
-          <button
-            type="submit"
-            className="bg-blue-500 hover:bg-blue-600 text-white font-semibold px-6 py-2.5 rounded-lg transition-colors text-sm"
-          >
-            Save Profile
-          </button>
+          <SubmitButton label="Save Profile" loadingLabel="Saving..." />
 
         </form>
       </div>
@@ -164,12 +160,7 @@ export default async function SettingsPage() {
             )}
           </div>
 
-          <button
-            type="submit"
-            className="bg-blue-500 hover:bg-blue-600 text-white font-semibold px-6 py-2.5 rounded-lg transition-colors text-sm"
-          >
-            Save Details
-          </button>
+          <SubmitButton label="Save Details" loadingLabel="Saving..." />
 
         </form>
       </div>
