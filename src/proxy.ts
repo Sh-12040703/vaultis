@@ -12,10 +12,6 @@ export default clerkMiddleware(async (auth, req) => {
   if (!isPublicRoute(req)) {
     await auth.protect()
   }
-  
-  const response = NextResponse.next()
-  response.headers.set('x-pathname', req.nextUrl.pathname)
-  return response
 })
 
 export const config = {
