@@ -14,6 +14,7 @@ const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' })
 type ExtractedLine = {
     policy_number: string
     insured_name: string
+    insurer: string
     gross_premium: number
     product_type: string
     commission_rate_applied: number
@@ -113,12 +114,13 @@ Return ONLY a valid JSON object — no other text, no markdown backticks, no exp
 
 JSON format:
 {
-  "insurer": "insurer name from document",
+  "insurer": "overall insurer name from document",
   "statement_date": "YYYY-MM-DD",
   "lines": [
     {
       "policy_number": "exact policy number",
       "insured_name": "policyholder name",
+      "insurer": "insurer name for this specific line if different, else same as overall",
       "gross_premium": 0.00,
       "product_type": "health|motor|life|term|commercial|other",
       "commission_rate_applied": 0.00,
@@ -135,6 +137,7 @@ Rules:
 - commission_rate_applied is the percentage rate shown (0 if not shown)
 - tds_deducted is TDS amount (0 if none)
 - net_paid = gross_commission minus tds_deducted
+- insurer per line is critical — extract it from each row if the statement has multiple insurers
 - If a field is not found use 0 for numbers or empty string for text
 - Return ONLY the JSON object nothing else`
 
@@ -171,34 +174,16 @@ Rules:
 
     // Step 2 — Get agent rate cards for this insurer
     // Step 2 — Get agent rate cards
-    // Use manually selected insurer first, then detected insurer
-    const insurerForRates = insurer || detectedInsurer
-
-    const agentRates = await db
+    // Step 2 — Get ALL agent rate cards (matched per line below)
+    const allAgentRates = await db
         .select()
         .from(rateCards)
         .where(
             and(
                 eq(rateCards.agentId, agent.id),
-                eq(rateCards.insurer, insurerForRates),
                 isNull(rateCards.effectiveTo)
             )
         )
-
-    // Fallback — get all agent rate cards if insurer-specific ones not found
-    const fallbackRates = agentRates.length === 0
-        ? await db
-            .select()
-            .from(rateCards)
-            .where(
-                and(
-                    eq(rateCards.agentId, agent.id),
-                    isNull(rateCards.effectiveTo)
-                )
-            )
-        : []
-
-    const ratesToUse = agentRates.length > 0 ? agentRates : fallbackRates
 
     // Step 3 — Get agent policies for matching
     const agentPolicies = await db
@@ -219,16 +204,26 @@ Rules:
 
         // Find rate card — try year 1 first then renewal
         // Find rate card
-        const rateCard = ratesToUse.find(
-            r => r.productType === line.product_type
-        )
+        // First try to match by line's insurer + product type
+        // Fall back to any rate card with matching product type
+        // Get insurer for this specific line — falls back to overall statement insurer
+        const lineInsurer = line.insurer || detectedInsurer || insurer
+
+        // Match rate card: exact insurer + product type first, then product type only
+        const rateCard =
+            allAgentRates.find(
+                r => r.insurer === lineInsurer && r.productType === line.product_type
+            ) ||
+            allAgentRates.find(
+                r => r.productType === line.product_type
+            )
 
         // Pure arithmetic — never AI
         const expectedRate = rateCard ? Number(rateCard.ratePct) : 0
         const expectedGross = expectedRate > 0
-            ? (line.gross_premium * expectedRate) / 100
+            ? Math.round((line.gross_premium * expectedRate) / 100 * 100) / 100
             : line.gross_commission
-        const expectedNet = expectedGross - line.tds_deducted
+        const expectedNet = Math.round((expectedGross - line.tds_deducted) * 100) / 100
         const discrepancy = expectedNet - line.net_paid
 
         let status: ReconciliationLine['status'] = 'matched'
