@@ -6,6 +6,7 @@ import { db } from '@/lib/db'
 import { commissions, policies, rateCards } from '@/lib/db/schema'
 import { eq, and, isNull } from 'drizzle-orm'
 import { revalidatePath } from 'next/cache'
+import * as XLSX from 'xlsx'
 
 const genAI = new GoogleGenerativeAI(process.env.GOOGLE_AI_API_KEY!)
 const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' })
@@ -68,9 +69,36 @@ export async function reconcileStatement(
   }
 
   // Convert file to base64 for Gemini
-  const buffer   = await file.arrayBuffer()
-  const base64   = Buffer.from(buffer).toString('base64')
-  const mimeType = file.type || 'application/pdf'
+  const buffer = await file.arrayBuffer()
+const mimeType = file.type || 'application/pdf'
+
+const isExcel = mimeType.includes('spreadsheetml') || mimeType.includes('ms-excel')
+  || file.name.endsWith('.xlsx') || file.name.endsWith('.xls')
+
+let geminiContent: any[]
+
+if (isExcel) {
+  // Convert Excel to CSV text — Gemini reads text, not binary spreadsheets
+  const workbook  = XLSX.read(buffer, { type: 'buffer' })
+  const sheetName = workbook.SheetNames[0]
+  const sheet     = workbook.Sheets[sheetName]
+  const csvText   = XLSX.utils.sheet_to_csv(sheet)
+
+  geminiContent = [
+    `Here is the commission statement data extracted from an Excel file, in CSV format:\n\n${csvText}`,
+  ]
+} else {
+  // PDF or image — Gemini can read these directly
+  const base64 = Buffer.from(buffer).toString('base64')
+  geminiContent = [
+    {
+      inlineData: {
+        mimeType,
+        data: base64,
+      },
+    },
+  ]
+}
 
   // Step 1 — Gemini extracts commission lines
   let extractedLines: ExtractedLine[] = []
@@ -110,15 +138,10 @@ Rules:
 - If a field is not found use 0 for numbers or empty string for text
 - Return ONLY the JSON object nothing else`
 
-    const result = await model.generateContent([
-      {
-        inlineData: {
-          mimeType,
-          data: base64,
-        },
-      },
-      prompt,
-    ])
+const result = await model.generateContent([
+    ...geminiContent,
+    prompt,
+  ])
 
     const raw     = result.response.text()
     const cleaned = raw.replace(/```json\n?|\n?```/g, '').trim()
