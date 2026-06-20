@@ -102,6 +102,12 @@ export default async function CommissionsPage({
         </div>
         <div className="flex items-center gap-3">
           <Link
+            href="/commissions/reconcile"
+            className="flex items-center gap-2 bg-green-500/10 hover:bg-green-500/20 border border-green-500/20 text-green-400 font-semibold px-4 py-2.5 rounded-lg transition-colors text-sm"
+          >
+            Reconcile Statement
+          </Link>
+          <Link
             href="/commissions/rate-cards"
             className="flex items-center gap-2 border border-slate-700 hover:border-slate-500 text-slate-300 hover:text-white font-semibold px-4 py-2.5 rounded-lg transition-colors text-sm"
           >
@@ -126,8 +132,8 @@ export default async function CommissionsPage({
           <Link
             href="/commissions"
             className={`text-xs px-3 py-1.5 rounded-full border transition-colors ${!fy
-                ? 'bg-blue-500 border-blue-500 text-white'
-                : 'border-slate-700 text-slate-400 hover:border-slate-500'
+              ? 'bg-blue-500 border-blue-500 text-white'
+              : 'border-slate-700 text-slate-400 hover:border-slate-500'
               }`}
           >
             All Years
@@ -137,8 +143,8 @@ export default async function CommissionsPage({
               key={year}
               href={`/commissions?fy=${year}`}
               className={`text-xs px-3 py-1.5 rounded-full border transition-colors ${fy === year
-                  ? 'bg-blue-500 border-blue-500 text-white'
-                  : 'border-slate-700 text-slate-400 hover:border-slate-500'
+                ? 'bg-blue-500 border-blue-500 text-white'
+                : 'border-slate-700 text-slate-400 hover:border-slate-500'
                 }`}
             >
               FY {year}
