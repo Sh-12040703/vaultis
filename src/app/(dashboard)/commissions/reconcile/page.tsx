@@ -37,10 +37,14 @@ function StatusBadge({ status }: { status: string }) {
     </span>
   )
   if (status === 'overpaid') return (
-    <span className="flex items-center gap-1 bg-blue-500/10 text-blue-400 text-xs font-medium px-2 py-0.5 rounded-full">
-      Overpaid
+    <span
+      title="Insurer paid more than your rate card — verify if rate card needs updating"
+      className="flex items-center gap-1 bg-blue-500/10 text-blue-400 text-xs font-medium px-2 py-0.5 rounded-full cursor-help"
+    >
+      Overpaid ↑
     </span>
   )
+  
   return (
     <span className="flex items-center gap-1 bg-amber-500/10 text-amber-400 text-xs font-medium px-2 py-0.5 rounded-full">
       <AlertTriangle className="w-3 h-3" /> No Rate Card
