@@ -133,10 +133,11 @@ JSON format:
 
 Rules:
 - All amounts must be numbers not strings
-- product_type must be one of: health motor life term commercial other
+- product_type must be one of: health motor life term commercial other  
 - commission_rate_applied is the percentage rate shown (0 if not shown)
 - tds_deducted is TDS amount (0 if none)
-- net_paid = gross_commission minus tds_deducted
+- net_paid MUST be the exact value from the Net Paid column — do NOT calculate it
+- Use the exact numbers from each cell — never recalculate
 - insurer per line is critical — extract it from each row if the statement has multiple insurers
 - If a field is not found use 0 for numbers or empty string for text
 - Return ONLY the JSON object nothing else`
