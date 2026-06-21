@@ -9,6 +9,7 @@ import {
   AlertCircle,
   CheckCircle,
   Plus,
+  Download,
 } from 'lucide-react'
 
 function StatusBadge({ status }: { status: string }) {
@@ -100,7 +101,14 @@ export default async function CommissionsPage({
             Track every rupee — expected, received, and disputed
           </p>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 flex-wrap">
+          <Link
+            href="/commissions/tds-export"
+            className="flex items-center gap-2 border border-purple-500/30 hover:border-purple-500/60 text-purple-400 hover:text-purple-300 font-semibold px-4 py-2.5 rounded-lg transition-colors text-sm"
+          >
+            <Download className="w-4 h-4" />
+            TDS Export
+          </Link>
           <Link
             href="/commissions/reconcile"
             className="flex items-center gap-2 bg-green-500/10 hover:bg-green-500/20 border border-green-500/20 text-green-400 font-semibold px-4 py-2.5 rounded-lg transition-colors text-sm"
