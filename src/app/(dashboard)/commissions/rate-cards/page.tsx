@@ -2,7 +2,7 @@ import { getOrCreateAgent } from '@/lib/actions/agent'
 import { addRateCard, deleteRateCard } from '@/lib/actions/rate-cards'
 import { db } from '@/lib/db'
 import { rateCards } from '@/lib/db/schema'
-import { eq, isNull } from 'drizzle-orm'
+import { eq, isNull, and } from 'drizzle-orm'
 import { SubmitButton } from '@/components/ui/submit-button'
 import Link from 'next/link'
 import { ArrowLeft, Trash2, Info } from 'lucide-react'
@@ -59,29 +59,17 @@ export default async function RateCardsPage() {
   const agent = await getOrCreateAgent()
   if (!agent) return null
 
-  // Get all active rate cards (no effectiveTo = currently active)
-  const activeCards = await db
-    .select()
-    .from(rateCards)
-    .where(
-      eq(rateCards.agentId, agent.id) &&
-      isNull(rateCards.effectiveTo)
-    )
-    .orderBy(rateCards.insurer)
-
-  // Use drizzle properly
-  const { and: drizzleAnd } = await import('drizzle-orm')
 
   const cards = await db
-    .select()
-    .from(rateCards)
-    .where(
-      drizzleAnd(
-        eq(rateCards.agentId, agent.id),
-        isNull(rateCards.effectiveTo)
-      )
+  .select()
+  .from(rateCards)
+  .where(
+    and(
+      eq(rateCards.agentId, agent.id),
+      isNull(rateCards.effectiveTo)
     )
-    .orderBy(rateCards.insurer, rateCards.productType)
+  )
+  .orderBy(rateCards.insurer, rateCards.productType)
 
   return (
     <div className="p-8 max-w-5xl space-y-6">

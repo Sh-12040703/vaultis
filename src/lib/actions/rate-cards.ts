@@ -39,7 +39,7 @@ export async function addRateCard(formData: FormData) {
     insurer,
     productType,
     policyYear,
-    ratePct,
+    ratePct: parseFloat(ratePct).toFixed(2),
     effectiveFrom,
     effectiveTo:   null,
     notes:         notes?.trim() || null,
