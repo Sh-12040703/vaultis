@@ -52,14 +52,14 @@ async function seed() {
   // ─── STEP 3: CREATE CLIENTS
   console.log('👥 Creating clients...')
   const clientData = [
-    { name: 'Ramesh Chavan',    phone: '9511831216', email: 'ramesh@gmail.com',   dob: '1975-06-15', address: '123, MG Road, Pune, Maharashtra 411001' },
-    { name: 'Priya Patel',      phone: '9822341567', email: 'priya@gmail.com',    dob: '1988-03-22', address: '45, Linking Road, Mumbai, Maharashtra 400050' },
-    { name: 'Suresh Nair',      phone: '9765432109', email: 'suresh@gmail.com',   dob: '1965-11-08', address: '78, Brigade Road, Bangalore, Karnataka 560001' },
-    { name: 'Anita Desai',      phone: '9654321098', email: 'anita@gmail.com',    dob: '1992-07-30', address: '12, Park Street, Kolkata, West Bengal 700016' },
-    { name: 'Vikram Singh',     phone: '9543210987', email: 'vikram@gmail.com',   dob: '1980-01-14', address: '56, Connaught Place, Delhi 110001' },
-    { name: 'Meena Krishnan',   phone: '9432109876', email: 'meena@gmail.com',    dob: '1995-09-25', address: '34, Anna Salai, Chennai, Tamil Nadu 600002' },
-    { name: 'Arun Joshi',       phone: '9321098765', email: null,                 dob: '1970-04-18', address: null },
-    { name: 'Sunita Agarwal',   phone: '9210987654', email: 'sunita@gmail.com',   dob: '1983-12-05', address: '89, Civil Lines, Jaipur, Rajasthan 302006' },
+    { name: 'Ramesh Chavan', phone: '9511831216', email: 'ramesh@gmail.com', dob: '1975-06-15', address: '123, MG Road, Pune, Maharashtra 411001' },
+    { name: 'Priya Patel', phone: '9822341567', email: 'priya@gmail.com', dob: '1988-03-22', address: '45, Linking Road, Mumbai, Maharashtra 400050' },
+    { name: 'Suresh Nair', phone: '9765432109', email: 'suresh@gmail.com', dob: '1965-11-08', address: '78, Brigade Road, Bangalore, Karnataka 560001' },
+    { name: 'Anita Desai', phone: '9654321098', email: 'anita@gmail.com', dob: '1992-07-30', address: '12, Park Street, Kolkata, West Bengal 700016' },
+    { name: 'Vikram Singh', phone: '9543210987', email: 'vikram@gmail.com', dob: '1980-01-14', address: '56, Connaught Place, Delhi 110001' },
+    { name: 'Meena Krishnan', phone: '9432109876', email: 'meena@gmail.com', dob: '1995-09-25', address: '34, Anna Salai, Chennai, Tamil Nadu 600002' },
+    { name: 'Arun Joshi', phone: '9321098765', email: null, dob: '1970-04-18', address: null },
+    { name: 'Sunita Agarwal', phone: '9210987654', email: 'sunita@gmail.com', dob: '1983-12-05', address: '89, Civil Lines, Jaipur, Rajasthan 302006' },
   ]
 
   const insertedClients = await db
@@ -193,74 +193,79 @@ async function seed() {
     .insert(policies)
     .values(
       policyData.map(p => ({
-        clientId:     insertedClients[p.clientIndex].id,
-        agentId:      agent.id,
+        clientId: insertedClients[p.clientIndex].id,
+        agentId: agent.id,
         policyNumber: p.policyNumber,
-        insurer:      p.insurer,
-        type:         p.type,
-        premium:      p.premium,
-        sumInsured:   p.sumInsured,
-        startDate:    p.startDate,
-        expiryDate:   p.expiryDate,
-        status:       p.status,
+        insurer: p.insurer,
+        type: p.type,
+        premium: p.premium,
+        sumInsured: p.sumInsured,
+        startDate: p.startDate,
+        expiryDate: p.expiryDate,
+        status: p.status,
       }))
     )
     .returning()
 
   // ─── STEP 5: CREATE RENEWALS for each policy
+  // ─── STEP 5: CREATE RENEWALS
   console.log('🔄 Creating renewals...')
+
+  const todayStr = today.toISOString().split('T')[0]
+
   await db.insert(renewals).values(
-    insertedPolicies.map((policy, index) => ({
-      policyId: policy.id,
-      dueDate:  policyData[index].expiryDate,
-      amount:   policyData[index].premium,
-      // Arun's policy (index 6) is already paid
-      status:   index === 6 ? 'paid' : 
-                policyData[index].expiryDate < today.toISOString().split('T')[0] 
-                ? 'pending'   // overdue but still pending
-                : 'pending',
-      paidAt:   index === 6 ? new Date() : null,
-    }))
+    insertedPolicies.map((policy) => {
+      const pData = policyData.find(p => p.policyNumber === policy.policyNumber)!
+      const isArun = policy.policyNumber === 'SBI/HLT/2024/007890'
+
+      return {
+        policyId: policy.id,
+        dueDate: pData.expiryDate,
+        amount: pData.premium,
+        status: isArun ? 'paid' : 'pending',
+        paidAt: isArun ? new Date() : null,
+      }
+    })
   )
 
   // ─── STEP 6: CREATE COMMISSIONS (for when we build that page)
   console.log('💰 Creating commissions...')
   await db.insert(commissions).values([
     {
-      policyId:    insertedPolicies[0].id,
-      agentId:     agent.id,
+      policyId: insertedPolicies[0].id,
+      agentId: agent.id,
       expectedAmt: '2775',    // 15% of 18500
       receivedAmt: '2775',    // matched perfectly
       tdsDeducted: '277',
-      gstAmount:   '499',
+      gstAmount: '499',
       paymentDate: daysAgo(30),
-      fyYear:      '2025-26',
-      quarter:     'Q1',
-      status:      'matched',
+      fyYear: '2025-26',
+      quarter: 'Q1',
+      status: 'matched',
     },
     {
-      policyId:    insertedPolicies[2].id,
-      agentId:     agent.id,
+      policyId: insertedPolicies[2].id,
+      agentId: agent.id,
       expectedAmt: '3300',    // 15% of 22000
       receivedAmt: '2900',    // SHORT — insurer underpaid by 400
       tdsDeducted: '290',
-      gstAmount:   '522',
+      gstAmount: '522',
       paymentDate: daysAgo(15),
-      fyYear:      '2025-26',
-      quarter:     'Q1',
-      status:      'short',   // discrepancy — this is the pain point we solve
+      fyYear: '2025-26',
+      quarter: 'Q1',
+      status: 'short',   // discrepancy — this is the pain point we solve
     },
     {
-      policyId:    insertedPolicies[4].id,
-      agentId:     agent.id,
+      policyId: insertedPolicies[4].id,
+      agentId: agent.id,
       expectedAmt: '6750',    // 15% of 45000
       receivedAmt: null,      // not received yet
       tdsDeducted: '0',
-      gstAmount:   '0',
+      gstAmount: '0',
       paymentDate: null,
-      fyYear:      '2025-26',
-      quarter:     'Q2',
-      status:      'pending',
+      fyYear: '2025-26',
+      quarter: 'Q2',
+      status: 'pending',
     },
   ])
 
