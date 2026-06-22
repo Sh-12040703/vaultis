@@ -226,7 +226,7 @@ export default async function CommissionsPage({
           <div className="flex items-start justify-between flex-wrap gap-4">
             <div>
               <h3 className="text-white font-semibold text-sm">
-                TDS Summary — FY {fy || currentFY}
+                TDS Summary — FY {fy || uniqueFYs[0] || currentFY}
               </h3>
               <p className="text-slate-400 text-xs mt-1">
                 Total TDS deducted by insurers this financial year.
