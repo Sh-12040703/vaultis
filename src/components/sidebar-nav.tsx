@@ -9,6 +9,7 @@ import {
   RefreshCw,
   IndianRupee,
   Settings,
+  Shield,
 } from 'lucide-react'
 
 const navItems = [
@@ -17,6 +18,7 @@ const navItems = [
   { href: '/policies',    label: 'Policies',     icon: FileText },
   { href: '/renewals',    label: 'Renewals',     icon: RefreshCw },
   { href: '/commissions', label: 'Commissions',  icon: IndianRupee },
+  { href: '/claims',      label: 'Claims',       icon: Shield },
   { href: '/settings',    label: 'Settings',     icon: Settings },
 ]
 
