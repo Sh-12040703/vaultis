@@ -108,7 +108,7 @@ export default function ReconcilePage() {
   const shortCount = result?.lines.filter(l => l.status === 'short').length ?? 0
 
   return (
-    <div className="p-8 max-w-5xl space-y-6">
+    <div className="p-4 sm:p-6 lg:p-8 max-w-5xl mx-auto space-y-6">
 
       {/* Header */}
       <div>
@@ -117,7 +117,7 @@ export default function ReconcilePage() {
           className="flex items-center gap-2 text-slate-400 hover:text-white text-sm mb-4 transition-colors w-fit"
         >
           <ArrowLeft className="w-4 h-4" />
-          Back to Commissions
+          <span className="hidden sm:inline">Back to Commissions</span>
         </Link>
         <h1 className="text-2xl font-bold text-white">
           Commission Reconciliation
@@ -129,7 +129,7 @@ export default function ReconcilePage() {
 
       {/* Upload Section */}
       {!result && (
-        <div className="bg-slate-900 border border-slate-800 rounded-xl p-6 space-y-5">
+        <div className="bg-slate-900 border border-slate-800 rounded-xl p-4 sm:p-6 space-y-5">
 
           {/* Insurer select */}
           <div className="space-y-1.5">
@@ -158,7 +158,7 @@ export default function ReconcilePage() {
             </label>
             <div
               onClick={() => document.getElementById('stmt-file')?.click()}
-              className={`border-2 border-dashed rounded-xl p-8 text-center cursor-pointer transition-colors ${
+              className={`border-2 border-dashed rounded-xl p-6 sm:p-8 text-center cursor-pointer transition-colors ${
                 file
                   ? 'border-green-500/50 bg-green-500/5'
                   : 'border-slate-700 hover:border-slate-500 bg-slate-800/50'
@@ -177,7 +177,7 @@ export default function ReconcilePage() {
               {file ? (
                 <div className="space-y-1">
                   <FileText className="w-8 h-8 text-green-400 mx-auto" />
-                  <p className="text-white text-sm font-medium">{file.name}</p>
+                  <p className="text-white text-sm font-medium truncate max-w-[200px] mx-auto">{file.name}</p>
                   <p className="text-slate-500 text-xs">
                     {(file.size / 1024).toFixed(1)} KB · Click to change
                   </p>
@@ -229,7 +229,7 @@ export default function ReconcilePage() {
 
       {/* Error state */}
       {result && !result.success && (
-        <div className="bg-red-500/10 border border-red-500/20 rounded-xl p-6 space-y-3">
+        <div className="bg-red-500/10 border border-red-500/20 rounded-xl p-4 sm:p-6 space-y-3">
           <div className="flex items-center gap-3">
             <AlertCircle className="w-5 h-5 text-red-400" />
             <h3 className="text-white font-semibold">Reconciliation Failed</h3>
@@ -303,9 +303,11 @@ export default function ReconcilePage() {
             </button>
           </div>
 
-          {/* Lines table */}
+          {/* ── Lines table / cards ────────────────────────────────── */}
           <div className="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden">
-            <div className="overflow-x-auto">
+
+            {/* Desktop table */}
+            <div className="hidden sm:block overflow-x-auto">
               <table className="w-full">
                 <thead>
                   <tr className="border-b border-slate-800">
@@ -375,12 +377,80 @@ export default function ReconcilePage() {
                 </tbody>
               </table>
             </div>
+
+            {/* Mobile cards */}
+            <div className="sm:hidden p-4 space-y-4">
+              {result.lines.map((line, i) => (
+                <div
+                  key={i}
+                  className={`bg-slate-800 border rounded-xl p-4 space-y-3 ${
+                    line.status === 'short'
+                      ? 'border-red-500/30 bg-red-500/5'
+                      : 'border-slate-700'
+                  }`}
+                >
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <div className="text-white font-medium">{line.insured_name}</div>
+                      <div className="text-slate-400 text-xs font-mono">{line.policy_number}</div>
+                    </div>
+                    <StatusBadge status={line.status} />
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-x-3 gap-y-1 text-xs">
+                    <div>
+                      <span className="text-slate-500">Premium:</span>{' '}
+                      <span className="text-slate-300">
+                        ₹{Number(line.gross_premium).toLocaleString('en-IN', { maximumFractionDigits: 0 })}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-slate-500">Expected:</span>{' '}
+                      <span className="text-slate-300">
+                        ₹{line.expected_net.toLocaleString('en-IN', { maximumFractionDigits: 0 })}
+                        {line.expected_rate > 0 && (
+                          <span className="text-slate-500 ml-1">({line.expected_rate}%)</span>
+                        )}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-slate-500">Received:</span>{' '}
+                      <span className="text-green-400">
+                        ₹{Number(line.net_paid).toLocaleString('en-IN', { maximumFractionDigits: 0 })}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-slate-500">TDS:</span>{' '}
+                      <span className="text-purple-400">
+                        {line.tds_deducted > 0
+                          ? `₹${Number(line.tds_deducted).toLocaleString('en-IN', { maximumFractionDigits: 0 })}`
+                          : '—'}
+                      </span>
+                    </div>
+                    <div className="col-span-2">
+                      <span className="text-slate-500">Difference:</span>{' '}
+                      {Math.abs(line.discrepancy) < 1 ? (
+                        <span className="text-slate-500">—</span>
+                      ) : line.discrepancy > 0 ? (
+                        <span className="text-red-400 font-semibold">
+                          -₹{line.discrepancy.toLocaleString('en-IN', { maximumFractionDigits: 0 })}
+                        </span>
+                      ) : (
+                        <span className="text-green-400 font-semibold">
+                          +₹{Math.abs(line.discrepancy).toLocaleString('en-IN', { maximumFractionDigits: 0 })}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
 
           {/* Dispute email section */}
           {shortCount > 0 && (
-            <div className="bg-slate-900 border border-slate-800 rounded-xl p-6 space-y-4">
-              <div className="flex items-center justify-between">
+            <div className="bg-slate-900 border border-slate-800 rounded-xl p-4 sm:p-6 space-y-4">
+              <div className="flex items-center justify-between flex-wrap gap-3">
                 <div>
                   <h3 className="text-white font-semibold">
                     Dispute Email
@@ -406,8 +476,8 @@ export default function ReconcilePage() {
 
               {disputeEmail && (
                 <div className="space-y-3">
-                  <div className="bg-slate-800 rounded-lg p-4">
-                    <pre className="text-slate-300 text-xs whitespace-pre-wrap font-sans leading-relaxed">
+                  <div className="bg-slate-800 rounded-lg p-4 overflow-x-auto">
+                    <pre className="text-slate-300 text-xs whitespace-pre-wrap font-sans leading-relaxed break-words">
                       {disputeEmail}
                     </pre>
                   </div>
@@ -425,7 +495,7 @@ export default function ReconcilePage() {
 
           {/* All matched */}
           {shortCount === 0 && (
-            <div className="bg-green-500/10 border border-green-500/20 rounded-xl p-5 flex items-center gap-4">
+            <div className="bg-green-500/10 border border-green-500/20 rounded-xl p-4 sm:p-5 flex items-start sm:items-center gap-4 flex-col sm:flex-row">
               <CheckCircle className="w-8 h-8 text-green-400 flex-shrink-0" />
               <div>
                 <p className="text-white font-semibold">

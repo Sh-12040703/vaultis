@@ -95,7 +95,7 @@ export default async function PoliciesPage({
   const expiringSoonCount = allPolicies.filter(p => p.expiryDate >= today && p.expiryDate <= in30).length
 
   return (
-    <div className="p-8 space-y-6">
+    <div className="p-4 sm:p-6 lg:p-8 space-y-6">
 
       {/* Header */}
       <div className="flex items-center justify-between flex-wrap gap-4">
@@ -219,75 +219,134 @@ export default async function PoliciesPage({
           </Link>
         </div>
       ) : (
-
-        /* Policies Table */
-        <div className="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden">
-          <div className="px-5 py-3 border-b border-slate-800 flex items-center justify-between">
-            <span className="text-slate-400 text-sm">
-              Showing {filtered.length} of {allPolicies.length} policies
-            </span>
-          </div>
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead>
-                <tr className="border-b border-slate-800">
-                  {['Client', 'Policy No.', 'Insurer', 'Type', 'Premium', 'Sum Insured', 'Expiry', 'Status'].map(h => (
-                    <th key={h} className="text-left text-xs font-medium text-slate-500 uppercase tracking-wider px-5 py-3">
-                      {h}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-800">
-                {filtered.map((policy) => (
-                  <tr
-                    key={policy.id}
-                    className="hover:bg-slate-800/50 transition-colors"
-                  >
-                    <td className="px-5 py-3">
-                      <Link
-                        href={`/clients/${policy.clientId}`}
-                        className="text-white text-sm font-medium hover:text-blue-400 transition-colors"
-                      >
-                        {policy.clientName}
-                      </Link>
-                      <div className="text-slate-500 text-xs">{policy.clientPhone}</div>
-                    </td>
-                    <td className="px-5 py-3 text-slate-300 text-xs font-mono">
-                      {policy.policyNumber}
-                    </td>
-                    <td className="px-5 py-3 text-slate-300 text-sm">
-                      {policy.insurer}
-                    </td>
-                    <td className="px-5 py-3">
-                      <TypeBadge type={policy.type} />
-                    </td>
-                    <td className="px-5 py-3 text-slate-300 text-sm font-medium">
-                      ₹{Number(policy.premium).toLocaleString('en-IN')}
-                    </td>
-                    <td className="px-5 py-3 text-slate-300 text-sm">
-                      {policy.sumInsured
-                        ? `₹${Number(policy.sumInsured).toLocaleString('en-IN')}`
-                        : '—'}
-                    </td>
-                    <td className="px-5 py-3">
-                      <div className="text-slate-300 text-sm">
-                        {new Date(policy.expiryDate).toLocaleDateString('en-IN', {
-                          day: 'numeric', month: 'short', year: 'numeric'
-                        })}
-                      </div>
-                    </td>
-                    <td className="px-5 py-3">
-                      <StatusBadge expiryDate={policy.expiryDate} />
-                    </td>
+        <>
+          {/* ── Desktop table ────────────────────────────────── */}
+          <div className="hidden sm:block bg-slate-900 border border-slate-800 rounded-xl overflow-hidden">
+            <div className="px-5 py-3 border-b border-slate-800 flex items-center justify-between">
+              <span className="text-slate-400 text-sm">
+                Showing {filtered.length} of {allPolicies.length} policies
+              </span>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead>
+                  <tr className="border-b border-slate-800">
+                    {['Client', 'Policy No.', 'Insurer', 'Type', 'Premium', 'Sum Insured', 'Expiry', 'Status'].map(h => (
+                      <th key={h} className="text-left text-xs font-medium text-slate-500 uppercase tracking-wider px-5 py-3">
+                        {h}
+                      </th>
+                    ))}
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody className="divide-y divide-slate-800">
+                  {filtered.map((policy) => (
+                    <tr
+                      key={policy.id}
+                      className="hover:bg-slate-800/50 transition-colors"
+                    >
+                      <td className="px-5 py-3">
+                        <Link
+                          href={`/clients/${policy.clientId}`}
+                          className="text-white text-sm font-medium hover:text-blue-400 transition-colors"
+                        >
+                          {policy.clientName}
+                        </Link>
+                        <div className="text-slate-500 text-xs">{policy.clientPhone}</div>
+                      </td>
+                      <td className="px-5 py-3 text-slate-300 text-xs font-mono">
+                        {policy.policyNumber}
+                      </td>
+                      <td className="px-5 py-3 text-slate-300 text-sm">
+                        {policy.insurer}
+                      </td>
+                      <td className="px-5 py-3">
+                        <TypeBadge type={policy.type} />
+                      </td>
+                      <td className="px-5 py-3 text-slate-300 text-sm font-medium">
+                        ₹{Number(policy.premium).toLocaleString('en-IN')}
+                      </td>
+                      <td className="px-5 py-3 text-slate-300 text-sm">
+                        {policy.sumInsured
+                          ? `₹${Number(policy.sumInsured).toLocaleString('en-IN')}`
+                          : '—'}
+                      </td>
+                      <td className="px-5 py-3">
+                        <div className="text-slate-300 text-sm">
+                          {new Date(policy.expiryDate).toLocaleDateString('en-IN', {
+                            day: 'numeric', month: 'short', year: 'numeric'
+                          })}
+                        </div>
+                      </td>
+                      <td className="px-5 py-3">
+                        <StatusBadge expiryDate={policy.expiryDate} />
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
-        </div>
-      )}
 
+          {/* ── Mobile cards ────────────────────────────────── */}
+          <div className="sm:hidden space-y-4">
+            <div className="text-slate-400 text-sm px-1">
+              Showing {filtered.length} of {allPolicies.length} policies
+            </div>
+            {filtered.map((policy) => (
+              <div
+                key={policy.id}
+                className="bg-slate-800 border border-slate-700 rounded-xl p-4 space-y-3"
+              >
+                <div className="flex items-start justify-between">
+                  <div>
+                    <Link
+                      href={`/clients/${policy.clientId}`}
+                      className="text-white font-medium hover:text-blue-400 transition-colors"
+                    >
+                      {policy.clientName}
+                    </Link>
+                    <div className="text-slate-400 text-xs font-mono mt-0.5">
+                      {policy.policyNumber}
+                    </div>
+                  </div>
+                  <StatusBadge expiryDate={policy.expiryDate} />
+                </div>
+
+                <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-300">
+                  <span><span className="text-slate-500">Insurer:</span> {policy.insurer}</span>
+                  <TypeBadge type={policy.type} />
+                </div>
+
+                <div className="flex items-center justify-between">
+                  <div>
+                    <div className="text-slate-400 text-xs uppercase tracking-wider">
+                      Premium
+                    </div>
+                    <div className="text-white font-bold text-lg">
+                      ₹{Number(policy.premium).toLocaleString('en-IN')}
+                    </div>
+                    {policy.sumInsured && (
+                      <div className="text-slate-400 text-xs mt-0.5">
+                        SI: ₹{Number(policy.sumInsured).toLocaleString('en-IN')}
+                      </div>
+                    )}
+                  </div>
+                  <div className="text-right">
+                    <div className="text-slate-400 text-xs uppercase tracking-wider">
+                      Expiry
+                    </div>
+                    <div className="text-slate-300 text-sm font-medium">
+                      {new Date(policy.expiryDate).toLocaleDateString('en-IN', {
+                        day: 'numeric', month: 'short', year: 'numeric'
+                      })}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </>
+      )}
     </div>
   )
 }

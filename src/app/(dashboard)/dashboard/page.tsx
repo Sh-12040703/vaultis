@@ -10,8 +10,8 @@ export default async function DashboardPage() {
   if (!agent) return null
 
   const today = new Date().toISOString().split('T')[0]
-  const in30  = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
-  const in60  = new Date(Date.now() + 60 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
+  const in30 = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
+  const in60 = new Date(Date.now() + 60 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
 
   // Current FY
   const now = new Date()
@@ -61,7 +61,7 @@ export default async function DashboardPage() {
     .where(
       and(
         eq(commissions.agentId, agent.id),
-        eq(commissions.fyYear,   currentFY)
+        eq(commissions.fyYear, currentFY)
       )
     )
 
@@ -74,7 +74,7 @@ export default async function DashboardPage() {
     .where(
       and(
         eq(commissions.agentId, agent.id),
-        eq(commissions.fyYear,   currentFY)
+        eq(commissions.fyYear, currentFY)
       )
     )
 
@@ -84,18 +84,18 @@ export default async function DashboardPage() {
   // Get all renewals due in next 60 days that are still pending
   const pendingRenewals = await db
     .select({
-      amount:      renewals.amount,
-      insurer:     policies.insurer,
+      amount: renewals.amount,
+      insurer: policies.insurer,
       productType: policies.type,
     })
     .from(renewals)
     .innerJoin(policies, eq(renewals.policyId, policies.id))
     .where(
       and(
-        eq(policies.agentId,   agent.id),
-        eq(renewals.status,    'pending'),
-        gte(renewals.dueDate,  today),
-        lte(renewals.dueDate,  in60)
+        eq(policies.agentId, agent.id),
+        eq(renewals.status, 'pending'),
+        gte(renewals.dueDate, today),
+        lte(renewals.dueDate, in60)
       )
     )
 
@@ -137,14 +137,14 @@ export default async function DashboardPage() {
   // ── Expiring soon table ───────────────────────────────────
   const expiringSoon = await db
     .select({
-      id:           policies.id,
+      id: policies.id,
       policyNumber: policies.policyNumber,
-      insurer:      policies.insurer,
-      type:         policies.type,
-      premium:      policies.premium,
-      expiryDate:   policies.expiryDate,
-      clientName:   clients.name,
-      clientPhone:  clients.phone,
+      insurer: policies.insurer,
+      type: policies.type,
+      premium: policies.premium,
+      expiryDate: policies.expiryDate,
+      clientName: clients.name,
+      clientPhone: clients.phone,
     })
     .from(policies)
     .innerJoin(clients, eq(policies.clientId, clients.id))
@@ -163,11 +163,11 @@ export default async function DashboardPage() {
   const greeting = hour < 12
     ? 'Good morning'
     : hour < 17
-    ? 'Good afternoon'
-    : 'Good evening'
+      ? 'Good afternoon'
+      : 'Good evening'
 
   return (
-    <div className="p-8 space-y-8">
+    <div className="p-4 sm:p-6 lg:p-8 space-y-8">
 
       {/* Header */}
       <div className="flex items-start justify-between flex-wrap gap-4">
@@ -191,7 +191,7 @@ export default async function DashboardPage() {
       </div>
 
       {/* Top stats */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <div className="bg-slate-900 border border-slate-800 rounded-xl p-5">
           <div className="flex items-center justify-between mb-3">
             <span className="text-slate-400 text-xs uppercase tracking-wider">Clients</span>
@@ -355,6 +355,7 @@ export default async function DashboardPage() {
       </div>
 
       {/* Expiring Soon Table */}
+      {/* ── Expiring Soon ─────────────────────────────────────── */}
       <div className="bg-slate-900 border border-slate-800 rounded-xl">
         <div className="p-5 border-b border-slate-800 flex items-center justify-between">
           <div>
@@ -373,80 +374,159 @@ export default async function DashboardPage() {
           )}
         </div>
 
-        {expiringSoon.length === 0 ? (
-          <div className="p-10 text-center space-y-2">
-            <p className="text-slate-500 text-sm">
-              No policies expiring in the next 30 days
-            </p>
-            <p className="text-slate-600 text-xs">
-              Add clients and policies to see renewal alerts here
-            </p>
-          </div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead>
-                <tr className="border-b border-slate-800">
-                  {['Client', 'Policy No.', 'Insurer', 'Type', 'Premium', 'Expiry'].map(h => (
-                    <th key={h} className="text-left text-xs font-medium text-slate-500 uppercase tracking-wider px-5 py-3">
-                      {h}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-800">
-                {expiringSoon.map((policy) => {
-                  const daysLeft = Math.ceil(
-                    (new Date(policy.expiryDate).getTime() - Date.now()) /
-                    (1000 * 60 * 60 * 24)
-                  )
-                  return (
-                    <tr key={policy.id} className="hover:bg-slate-800/50 transition-colors">
-                      <td className="px-5 py-3">
-                        <Link href={`/clients/${policy.id}`}>
-                          <div className="text-white text-sm font-medium hover:text-blue-400 transition-colors">
-                            {policy.clientName}
+        {/* ── Desktop table ────────────────────────────────────── */}
+        <div className="hidden sm:block">
+          {expiringSoon.length === 0 ? (
+            <div className="p-10 text-center space-y-2">
+              <p className="text-slate-500 text-sm">
+                No policies expiring in the next 30 days
+              </p>
+              <p className="text-slate-600 text-xs">
+                Add clients and policies to see renewal alerts here
+              </p>
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead>
+                  <tr className="border-b border-slate-800">
+                    {['Client', 'Policy No.', 'Insurer', 'Type', 'Premium', 'Expiry'].map(h => (
+                      <th key={h} className="text-left text-xs font-medium text-slate-500 uppercase tracking-wider px-5 py-3">
+                        {h}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-800">
+                  {expiringSoon.map((policy) => {
+                    const daysLeft = Math.ceil(
+                      (new Date(policy.expiryDate).getTime() - Date.now()) /
+                      (1000 * 60 * 60 * 24)
+                    )
+                    return (
+                      <tr key={policy.id} className="hover:bg-slate-800/50 transition-colors">
+                        <td className="px-5 py-3">
+                          <Link href={`/clients/${policy.id}`}>
+                            <div className="text-white text-sm font-medium hover:text-blue-400 transition-colors">
+                              {policy.clientName}
+                            </div>
+                            <div className="text-slate-500 text-xs">{policy.clientPhone}</div>
+                          </Link>
+                        </td>
+                        <td className="px-5 py-3 text-slate-300 text-xs font-mono">
+                          {policy.policyNumber}
+                        </td>
+                        <td className="px-5 py-3 text-slate-300 text-sm">
+                          {policy.insurer}
+                        </td>
+                        <td className="px-5 py-3">
+                          <span className="bg-slate-800 text-slate-300 text-xs px-2 py-0.5 rounded-md capitalize">
+                            {policy.type}
+                          </span>
+                        </td>
+                        <td className="px-5 py-3 text-slate-300 text-sm font-medium">
+                          ₹{Number(policy.premium).toLocaleString('en-IN')}
+                        </td>
+                        <td className="px-5 py-3">
+                          <div className="text-slate-300 text-sm">
+                            {new Date(policy.expiryDate).toLocaleDateString('en-IN', {
+                              day: 'numeric', month: 'short', year: 'numeric'
+                            })}
                           </div>
-                          <div className="text-slate-500 text-xs">{policy.clientPhone}</div>
-                        </Link>
-                      </td>
-                      <td className="px-5 py-3 text-slate-300 text-xs font-mono">
-                        {policy.policyNumber}
-                      </td>
-                      <td className="px-5 py-3 text-slate-300 text-sm">
-                        {policy.insurer}
-                      </td>
-                      <td className="px-5 py-3">
-                        <span className="bg-slate-800 text-slate-300 text-xs px-2 py-0.5 rounded-md capitalize">
-                          {policy.type}
-                        </span>
-                      </td>
-                      <td className="px-5 py-3 text-slate-300 text-sm font-medium">
-                        ₹{Number(policy.premium).toLocaleString('en-IN')}
-                      </td>
-                      <td className="px-5 py-3">
-                        <div className="text-slate-300 text-sm">
+                          <div className={`text-xs mt-0.5 ${daysLeft <= 7
+                              ? 'text-red-400'
+                              : daysLeft <= 15
+                                ? 'text-amber-400'
+                                : 'text-slate-500'
+                            }`}>
+                            {daysLeft} days left
+                          </div>
+                        </td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+
+        {/* ── Mobile cards ────────────────────────────────────── */}
+        <div className="sm:hidden">
+          {expiringSoon.length === 0 ? (
+            <div className="p-6 text-center space-y-2">
+              <p className="text-slate-500 text-sm">
+                No policies expiring in the next 30 days
+              </p>
+              <p className="text-slate-600 text-xs">
+                Add clients and policies to see renewal alerts here
+              </p>
+            </div>
+          ) : (
+            <div className="p-4 space-y-4">
+              {expiringSoon.map((policy) => {
+                const daysLeft = Math.ceil(
+                  (new Date(policy.expiryDate).getTime() - Date.now()) /
+                  (1000 * 60 * 60 * 24)
+                )
+                return (
+                  <div
+                    key={policy.id}
+                    className="bg-slate-800 border border-slate-700 rounded-xl p-4 space-y-3"
+                  >
+                    <div className="flex items-start justify-between">
+                      <div>
+                        <div className="text-white font-medium">
+                          {policy.clientName}
+                        </div>
+                        <div className="text-slate-400 text-xs font-mono">
+                          {policy.policyNumber}
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <div className={`text-xs font-bold ${daysLeft <= 7
+                            ? 'text-red-400'
+                            : daysLeft <= 15
+                              ? 'text-amber-400'
+                              : 'text-slate-400'
+                          }`}>
+                          {daysLeft} DAYS LEFT
+                        </div>
+                        <div className="text-slate-500 text-xs">
                           {new Date(policy.expiryDate).toLocaleDateString('en-IN', {
                             day: 'numeric', month: 'short', year: 'numeric'
                           })}
                         </div>
-                        <div className={`text-xs mt-0.5 ${
-                          daysLeft <= 7
-                            ? 'text-red-400'
-                            : daysLeft <= 15
-                            ? 'text-amber-400'
-                            : 'text-slate-500'
-                        }`}>
-                          {daysLeft} days left
+                      </div>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <div className="text-slate-400 text-xs uppercase tracking-wider">
+                          Premium
                         </div>
-                      </td>
-                    </tr>
-                  )
-                })}
-              </tbody>
-            </table>
-          </div>
-        )}
+                        <div className="text-white font-bold text-lg">
+                          ₹{Number(policy.premium).toLocaleString('en-IN')}
+                        </div>
+                      </div>
+                      <Link
+                        href={`/renewals?policy=${policy.id}`}
+                        className="bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors"
+                      >
+                        Renew Now
+                      </Link>
+                    </div>
+                  </div>
+                )
+              })}
+              <Link
+                href="/renewals"
+                className="block text-center text-blue-400 text-sm font-medium hover:text-blue-300 transition-colors"
+              >
+                See all {expiringCount.count} expiring policies →
+              </Link>
+            </div>
+          )}
+        </div>
       </div>
 
     </div>

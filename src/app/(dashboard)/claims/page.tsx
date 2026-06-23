@@ -96,7 +96,7 @@ export default async function ClaimsPage() {
   const rejected = allClaims.filter(c => c.status === 'rejected').length
 
   return (
-    <div className="p-8 space-y-6">
+    <div className="p-4 sm:p-6 lg:p-8 space-y-6">
 
       {/* Header */}
       <div className="flex items-center justify-between flex-wrap gap-4">
@@ -111,12 +111,12 @@ export default async function ClaimsPage() {
           className="flex items-center gap-2 bg-blue-500 hover:bg-blue-600 text-white font-semibold px-4 py-2.5 rounded-lg transition-colors text-sm"
         >
           <Plus className="w-4 h-4" />
-          Log Claim
+          <span className="hidden sm:inline">Log Claim</span>
         </Link>
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <div className="bg-slate-900 border border-slate-800 rounded-xl p-4">
           <div className="text-slate-400 text-xs mb-1">Active Claims</div>
           <div className="text-2xl font-bold text-white">{active}</div>
@@ -150,56 +150,100 @@ export default async function ClaimsPage() {
           </Link>
         </div>
       ) : (
-        <div className="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden">
-          <table className="w-full">
-            <thead>
-              <tr className="border-b border-slate-800">
-                {['Client', 'Policy', 'Insurer', 'Incident Date', 'Description', 'Status', ''].map(h => (
-                  <th key={h} className="text-left text-xs font-medium text-slate-500 uppercase tracking-wider px-5 py-3">
-                    {h}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-800">
-              {allClaims.map((claim) => (
-                <tr key={claim.id} className="hover:bg-slate-800/50 transition-colors">
-                  <td className="px-5 py-3">
-                    <div className="text-white text-sm font-medium">{claim.clientName}</div>
-                    <div className="text-slate-500 text-xs">{claim.clientPhone}</div>
-                  </td>
-                  <td className="px-5 py-3 text-slate-300 text-xs font-mono">
-                    {claim.policyNumber}
-                  </td>
-                  <td className="px-5 py-3 text-slate-300 text-sm">
-                    {claim.insurer}
-                  </td>
-                  <td className="px-5 py-3 text-slate-400 text-sm">
-                    {claim.incidentDate
-                      ? new Date(claim.incidentDate).toLocaleDateString('en-IN', {
-                          day: 'numeric', month: 'short', year: 'numeric'
-                        })
-                      : '—'}
-                  </td>
-                  <td className="px-5 py-3 text-slate-300 text-sm max-w-xs">
-                    <p className="truncate">{claim.description}</p>
-                  </td>
-                  <td className="px-5 py-3">
-                    <ClaimStatusBadge status={claim.status ?? 'draft'} />
-                  </td>
-                  <td className="px-5 py-3 text-right">
-                    <Link
-                      href={`/claims/${claim.id}`}
-                      className="text-blue-400 hover:text-blue-300 text-sm font-medium transition-colors"
-                    >
-                      View →
-                    </Link>
-                  </td>
+        <>
+          {/* ── Desktop table ────────────────────────────────── */}
+          <div className="hidden sm:block bg-slate-900 border border-slate-800 rounded-xl overflow-hidden">
+            <table className="w-full">
+              <thead>
+                <tr className="border-b border-slate-800">
+                  {['Client', 'Policy', 'Insurer', 'Incident Date', 'Description', 'Status', ''].map(h => (
+                    <th key={h} className="text-left text-xs font-medium text-slate-500 uppercase tracking-wider px-5 py-3">
+                      {h}
+                    </th>
+                  ))}
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody className="divide-y divide-slate-800">
+                {allClaims.map((claim) => (
+                  <tr key={claim.id} className="hover:bg-slate-800/50 transition-colors">
+                    <td className="px-5 py-3">
+                      <div className="text-white text-sm font-medium">{claim.clientName}</div>
+                      <div className="text-slate-500 text-xs">{claim.clientPhone}</div>
+                    </td>
+                    <td className="px-5 py-3 text-slate-300 text-xs font-mono">
+                      {claim.policyNumber}
+                    </td>
+                    <td className="px-5 py-3 text-slate-300 text-sm">
+                      {claim.insurer}
+                    </td>
+                    <td className="px-5 py-3 text-slate-400 text-sm">
+                      {claim.incidentDate
+                        ? new Date(claim.incidentDate).toLocaleDateString('en-IN', {
+                            day: 'numeric', month: 'short', year: 'numeric'
+                          })
+                        : '—'}
+                    </td>
+                    <td className="px-5 py-3 text-slate-300 text-sm max-w-xs">
+                      <p className="truncate">{claim.description}</p>
+                    </td>
+                    <td className="px-5 py-3">
+                      <ClaimStatusBadge status={claim.status ?? 'draft'} />
+                    </td>
+                    <td className="px-5 py-3 text-right">
+                      <Link
+                        href={`/claims/${claim.id}`}
+                        className="text-blue-400 hover:text-blue-300 text-sm font-medium transition-colors"
+                      >
+                        View →
+                      </Link>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          {/* ── Mobile cards ────────────────────────────────── */}
+          <div className="sm:hidden space-y-4">
+            {allClaims.map((claim) => (
+              <div
+                key={claim.id}
+                className="bg-slate-800 border border-slate-700 rounded-xl p-4 space-y-3"
+              >
+                <div className="flex items-start justify-between">
+                  <div>
+                    <div className="text-white font-medium">{claim.clientName}</div>
+                    <div className="text-slate-400 text-xs font-mono">{claim.policyNumber}</div>
+                  </div>
+                  <ClaimStatusBadge status={claim.status ?? 'draft'} />
+                </div>
+
+                <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-300">
+                  <span><span className="text-slate-500">Insurer:</span> {claim.insurer}</span>
+                  {claim.incidentDate && (
+                    <span>
+                      <span className="text-slate-500">Incident:</span>{' '}
+                      {new Date(claim.incidentDate).toLocaleDateString('en-IN', {
+                        day: 'numeric', month: 'short', year: 'numeric'
+                      })}
+                    </span>
+                  )}
+                </div>
+
+                {claim.description && (
+                  <p className="text-slate-400 text-xs line-clamp-2">{claim.description}</p>
+                )}
+
+                <Link
+                  href={`/claims/${claim.id}`}
+                  className="block w-full text-center bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium py-2 rounded-lg transition-colors"
+                >
+                  View Details
+                </Link>
+              </div>
+            ))}
+          </div>
+        </>
       )}
     </div>
   )

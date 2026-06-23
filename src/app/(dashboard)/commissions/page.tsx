@@ -91,7 +91,7 @@ export default async function CommissionsPage({
     : `${now.getFullYear() - 1}-${String(now.getFullYear()).slice(2)}`
 
   return (
-    <div className="p-8 space-y-6">
+    <div className="p-4 sm:p-6 lg:p-8 space-y-6">
 
       {/* Header */}
       <div className="flex items-center justify-between flex-wrap gap-4">
@@ -107,26 +107,29 @@ export default async function CommissionsPage({
             className="flex items-center gap-2 border border-purple-500/30 hover:border-purple-500/60 text-purple-400 hover:text-purple-300 font-semibold px-4 py-2.5 rounded-lg transition-colors text-sm"
           >
             <Download className="w-4 h-4" />
-            TDS Export
+            <span className="hidden sm:inline">TDS Export</span>
           </Link>
           <Link
             href="/commissions/reconcile"
             className="flex items-center gap-2 bg-green-500/10 hover:bg-green-500/20 border border-green-500/20 text-green-400 font-semibold px-4 py-2.5 rounded-lg transition-colors text-sm"
           >
-            Reconcile Statement
+            <span className="hidden sm:inline">Reconcile Statement</span>
+            <span className="sm:hidden">Reconcile</span>
           </Link>
           <Link
             href="/commissions/rate-cards"
             className="flex items-center gap-2 border border-slate-700 hover:border-slate-500 text-slate-300 hover:text-white font-semibold px-4 py-2.5 rounded-lg transition-colors text-sm"
           >
-            Rate Cards
+            <span className="hidden sm:inline">Rate Cards</span>
+            <span className="sm:hidden">Rates</span>
           </Link>
           <Link
             href="/commissions/new"
             className="flex items-center gap-2 bg-blue-500 hover:bg-blue-600 text-white font-semibold px-4 py-2.5 rounded-lg transition-colors text-sm"
           >
             <Plus className="w-4 h-4" />
-            Log Commission
+            <span className="hidden sm:inline">Log Commission</span>
+            <span className="sm:hidden">Log</span>
           </Link>
         </div>
       </div>
@@ -139,10 +142,11 @@ export default async function CommissionsPage({
           </span>
           <Link
             href="/commissions"
-            className={`text-xs px-3 py-1.5 rounded-full border transition-colors ${!fy
-              ? 'bg-blue-500 border-blue-500 text-white'
-              : 'border-slate-700 text-slate-400 hover:border-slate-500'
-              }`}
+            className={`text-xs px-3 py-1.5 rounded-full border transition-colors ${
+              !fy
+                ? 'bg-blue-500 border-blue-500 text-white'
+                : 'border-slate-700 text-slate-400 hover:border-slate-500'
+            }`}
           >
             All Years
           </Link>
@@ -150,10 +154,11 @@ export default async function CommissionsPage({
             <Link
               key={year}
               href={`/commissions?fy=${year}`}
-              className={`text-xs px-3 py-1.5 rounded-full border transition-colors ${fy === year
-                ? 'bg-blue-500 border-blue-500 text-white'
-                : 'border-slate-700 text-slate-400 hover:border-slate-500'
-                }`}
+              className={`text-xs px-3 py-1.5 rounded-full border transition-colors ${
+                fy === year
+                  ? 'bg-blue-500 border-blue-500 text-white'
+                  : 'border-slate-700 text-slate-400 hover:border-slate-500'
+              }`}
             >
               FY {year}
             </Link>
@@ -270,10 +275,11 @@ export default async function CommissionsPage({
           </Link>
         </div>
       ) : (
-
-        /* Commission Table */
+        /* ── Commission Table / Cards ────────────────────────── */
         <div className="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden">
-          <div className="overflow-x-auto">
+
+          {/* ── Desktop table ────────────────────────────────── */}
+          <div className="hidden sm:block overflow-x-auto">
             <table className="w-full">
               <thead>
                 <tr className="border-b border-slate-800">
@@ -340,9 +346,76 @@ export default async function CommissionsPage({
               </tbody>
             </table>
           </div>
+
+          {/* ── Mobile cards ────────────────────────────────── */}
+          <div className="sm:hidden p-4 space-y-4">
+            {filtered.map((commission) => {
+              const expected = Number(commission.expectedAmt || 0)
+              const received = Number(commission.receivedAmt || 0)
+              const diff = expected - received
+              return (
+                <div
+                  key={commission.id}
+                  className="bg-slate-800 border border-slate-700 rounded-xl p-4 space-y-3"
+                >
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <div className="text-white font-medium">{commission.clientName}</div>
+                      <div className="text-slate-400 text-xs font-mono">{commission.policyNumber}</div>
+                    </div>
+                    <StatusBadge status={commission.status ?? 'pending'} />
+                  </div>
+
+                  <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate-300">
+                    <span><span className="text-slate-500">Insurer:</span> {commission.insurer}</span>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2 pt-1 border-t border-slate-700">
+                    <div>
+                      <div className="text-slate-400 text-xs uppercase tracking-wider">Expected</div>
+                      <div className="text-white font-bold text-base">₹{expected.toLocaleString('en-IN')}</div>
+                    </div>
+                    <div>
+                      <div className="text-slate-400 text-xs uppercase tracking-wider">Received</div>
+                      <div className="text-green-400 font-bold text-base">₹{received.toLocaleString('en-IN')}</div>
+                    </div>
+                    <div>
+                      <div className="text-slate-400 text-xs uppercase tracking-wider">TDS</div>
+                      <div className="text-purple-400 text-sm font-medium">
+                        {Number(commission.tdsDeducted) > 0
+                          ? `₹${Number(commission.tdsDeducted).toLocaleString('en-IN')}`
+                          : '—'}
+                      </div>
+                    </div>
+                    <div>
+                      <div className="text-slate-400 text-xs uppercase tracking-wider">Difference</div>
+                      {Math.abs(diff) < 1 ? (
+                        <span className="text-slate-500 text-sm">—</span>
+                      ) : diff > 0 ? (
+                        <span className="text-red-400 text-sm font-semibold">
+                          -₹{diff.toLocaleString('en-IN')}
+                        </span>
+                      ) : (
+                        <span className="text-green-400 text-sm">
+                          +₹{Math.abs(diff).toLocaleString('en-IN')}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                  {commission.paymentDate && (
+                    <div className="text-slate-400 text-xs">
+                      Paid: {new Date(commission.paymentDate).toLocaleDateString('en-IN', {
+                        day: 'numeric', month: 'short', year: 'numeric'
+                      })}
+                    </div>
+                  )}
+                </div>
+              )
+            })}
+          </div>
         </div>
       )}
-
     </div>
   )
 }
