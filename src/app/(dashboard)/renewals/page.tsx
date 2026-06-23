@@ -53,9 +53,7 @@ export default async function RenewalsPage() {
     const in90Days = new Date(Date.now() + 90 * 24 * 60 * 60 * 1000)
         .toISOString().split('T')[0]
 
-    // Get all renewals for this agent's policies in next 90 days
-    // plus any overdue ones
-    // Get ALL pending renewals for this agent — no date cutoff
+    // Get all renewals for this agent — no date cutoff
     const upcomingRenewals = await db
         .select({
             renewalId: renewals.id,
@@ -116,24 +114,39 @@ export default async function RenewalsPage() {
         .filter(r => r.renewalStatus === 'pending')
         .reduce((sum, r) => sum + Number(r.amount || 0), 0)
 
-    const RenewalTable = ({ items, title, emptyMsg }: {
+    // ── Reusable section component ───────────────────────────────
+    const RenewalSection = ({ items, title, emptyMsg }: {
         items: typeof upcomingRenewals,
         title: string,
         emptyMsg: string
-    }) => (
-        <div className="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden">
-            <div className="px-5 py-4 border-b border-slate-800 flex items-center justify-between">
-                <h2 className="text-white font-semibold text-sm">{title}</h2>
-                <span className="bg-slate-800 text-slate-400 text-xs px-2.5 py-1 rounded-full">
-                    {items.length}
-                </span>
-            </div>
-            {items.length === 0 ? (
-                <div className="px-5 py-8 text-center">
-                    <p className="text-slate-600 text-sm">{emptyMsg}</p>
+    }) => {
+        if (items.length === 0 && emptyMsg) {
+            return (
+                <div className="bg-slate-900 border border-slate-800 rounded-xl">
+                    <div className="px-5 py-4 border-b border-slate-800 flex items-center justify-between">
+                        <h2 className="text-white font-semibold text-sm">{title}</h2>
+                        <span className="bg-slate-800 text-slate-400 text-xs px-2.5 py-1 rounded-full">0</span>
+                    </div>
+                    <div className="px-5 py-8 text-center">
+                        <p className="text-slate-600 text-sm">{emptyMsg}</p>
+                    </div>
                 </div>
-            ) : (
-                <div className="overflow-x-auto">
+            )
+        }
+
+        if (items.length === 0) return null
+
+        return (
+            <div className="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden">
+                <div className="px-5 py-4 border-b border-slate-800 flex items-center justify-between">
+                    <h2 className="text-white font-semibold text-sm">{title}</h2>
+                    <span className="bg-slate-800 text-slate-400 text-xs px-2.5 py-1 rounded-full">
+                        {items.length}
+                    </span>
+                </div>
+
+                {/* ── Desktop table ────────────────────────────────── */}
+                <div className="hidden sm:block overflow-x-auto">
                     <table className="w-full">
                         <thead>
                             <tr className="border-b border-slate-800">
@@ -186,15 +199,66 @@ export default async function RenewalsPage() {
                         </tbody>
                     </table>
                 </div>
-            )}
-        </div>
-    )
+
+                {/* ── Mobile cards ────────────────────────────────── */}
+                <div className="sm:hidden p-4 space-y-4">
+                    {items.map((renewal) => {
+                        const daysLeft = Math.ceil(
+                            (new Date(renewal.dueDate).getTime() - Date.now()) /
+                            (1000 * 60 * 60 * 24)
+                        )
+                        return (
+                            <div
+                                key={renewal.renewalId}
+                                className="bg-slate-800 border border-slate-700 rounded-xl p-4 space-y-3"
+                            >
+                                <div className="flex items-start justify-between">
+                                    <div>
+                                        <div className="text-white font-medium">{renewal.clientName}</div>
+                                        <div className="text-slate-400 text-xs font-mono">{renewal.policyNumber}</div>
+                                    </div>
+                                    <StatusBadge status={renewal.renewalStatus ?? 'pending'} />
+                                </div>
+
+                                <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-300">
+                                    <span><span className="text-slate-500">Insurer:</span> {renewal.insurer}</span>
+                                    <span className="capitalize">{renewal.type}</span>
+                                </div>
+
+                                <div className="flex items-center justify-between">
+                                    <div>
+                                        <div className="text-slate-400 text-xs uppercase tracking-wider">Premium</div>
+                                        <div className="text-white font-bold text-lg">
+                                            ₹{Number(renewal.amount).toLocaleString('en-IN')}
+                                        </div>
+                                    </div>
+                                    <div className="text-right">
+                                        <div className="text-slate-400 text-xs uppercase tracking-wider">Due Date</div>
+                                        <div className="text-slate-300 text-sm font-medium">
+                                            {new Date(renewal.dueDate).toLocaleDateString('en-IN', {
+                                                day: 'numeric', month: 'short', year: 'numeric'
+                                            })}
+                                        </div>
+                                        <DaysLeftBadge daysLeft={daysLeft} />
+                                    </div>
+                                </div>
+
+                                <button className="w-full mt-2 text-sm bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 rounded-lg transition-colors">
+                                    Remind Client
+                                </button>
+                            </div>
+                        )
+                    })}
+                </div>
+            </div>
+        )
+    }
 
     return (
-        <div className="p-8 space-y-6">
+        <div className="p-4 sm:p-6 lg:p-8 space-y-6">
 
             {/* Header */}
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between flex-wrap gap-4">
                 <div>
                     <h1 className="text-2xl font-bold text-white">Renewals</h1>
                     <p className="text-slate-400 text-sm mt-1">
@@ -245,7 +309,7 @@ export default async function RenewalsPage() {
 
             {/* Overdue */}
             {overdue.length > 0 && (
-                <RenewalTable
+                <RenewalSection
                     items={overdue}
                     title="⚠ Overdue — Act Now"
                     emptyMsg=""
@@ -253,14 +317,14 @@ export default async function RenewalsPage() {
             )}
 
             {/* This Week */}
-            <RenewalTable
+            <RenewalSection
                 items={thisWeek}
                 title="Due This Week"
                 emptyMsg="No renewals due this week"
             />
 
             {/* This Month */}
-            <RenewalTable
+            <RenewalSection
                 items={thisMonth}
                 title="Due This Month"
                 emptyMsg="No renewals due this month"
@@ -268,17 +332,16 @@ export default async function RenewalsPage() {
 
             {/* Later */}
             {next90.length > 0 && (
-                <RenewalTable
+                <RenewalSection
                     items={next90}
                     title="Coming Up (30–90 days)"
                     emptyMsg=""
                 />
             )}
 
-
             {/* Future renewals — beyond 90 days */}
             {future.length > 0 && (
-                <RenewalTable
+                <RenewalSection
                     items={future}
                     title="Future Renewals (90+ days)"
                     emptyMsg=""
