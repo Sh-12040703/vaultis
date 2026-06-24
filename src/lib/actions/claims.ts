@@ -1,5 +1,6 @@
 'use server'
 
+import { z } from 'zod'
 import { getOrCreateAgent } from './agent'
 import { db } from '@/lib/db'
 import { claims, policies, clients } from '@/lib/db/schema'
@@ -11,17 +12,51 @@ import { GoogleGenerativeAI } from '@google/generative-ai'
 const genAI = new GoogleGenerativeAI(process.env.GOOGLE_AI_API_KEY!)
 const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' })
 
+// ─── Schemas ───────────────────────────────────────────────
+
+const AddClaimSchema = z.object({
+  policyId:     z.string().uuid('Invalid policy ID'),
+  incidentDate: z.string().optional().or(z.literal('')),
+  description:  z.string().min(1, 'Claim description is required').max(1000, 'Description too long (max 1000 characters)').trim(),
+})
+
+const UpdateStatusSchema = z.object({
+  claimId: z.string().uuid('Invalid claim ID'),
+  status:  z.enum(['draft', 'intimated', 'documents_submitted', 'under_review', 'approved', 'rejected', 'settled']),
+})
+
+const GeneratePreCheckSchema = z.object({
+  claimId:     z.string().uuid('Invalid claim ID'),
+  description: z.string().min(1, 'Description is required'),
+  policyData:  z.string().min(1, 'Policy data is required'),
+})
+
+const GenerateEmailSchema = z.object({
+  clientName:   z.string().min(1, 'Client name is required').max(100),
+  policyNumber: z.string().min(1, 'Policy number is required').max(100),
+  insurer:      z.string().min(1, 'Insurer is required').max(100),
+  description:  z.string().min(1, 'Description is required').max(1000),
+  incidentDate: z.string().optional().or(z.literal('')),
+})
+
+// ─── Actions ──────────────────────────────────────────────
+
 export async function addClaim(formData: FormData) {
   const agent = await getOrCreateAgent()
   if (!agent) throw new Error('Not authenticated')
 
-  const policyId    = formData.get('policyId') as string
-  const incidentDate = formData.get('incidentDate') as string
-  const description = formData.get('description') as string
+  const result = AddClaimSchema.safeParse({
+    policyId:     formData.get('policyId'),
+    incidentDate: formData.get('incidentDate') || '',
+    description:  formData.get('description'),
+  })
 
-  if (!policyId || !description) {
-    throw new Error('Please fill all required fields')
+  if (!result.success) {
+    const firstIssue = result.error.issues?.[0]
+    throw new Error(firstIssue?.message || 'Validation failed')
   }
+
+  const { policyId, incidentDate, description } = result.data
 
   // Verify policy belongs to this agent
   const policy = await db
@@ -52,17 +87,35 @@ export async function addClaim(formData: FormData) {
   redirect(`/claims/${newClaim[0].id}`)
 }
 
-export async function updateClaimStatus(
-  claimId: string,
-  status: string
-) {
+export async function updateClaimStatus(claimId: string, status: string) {
   const agent = await getOrCreateAgent()
   if (!agent) throw new Error('Not authenticated')
 
+  const result = UpdateStatusSchema.safeParse({ claimId, status })
+  if (!result.success) {
+    const firstIssue = result.error.issues?.[0]
+    throw new Error(firstIssue?.message || 'Validation failed')
+  }
+
+  // Verify ownership – the claim must belong to a policy of this agent
+  const claim = await db
+    .select()
+    .from(claims)
+    .innerJoin(policies, eq(claims.policyId, policies.id))
+    .where(
+      and(
+        eq(claims.id, result.data.claimId),
+        eq(policies.agentId, agent.id)
+      )
+    )
+    .limit(1)
+
+  if (claim.length === 0) throw new Error('Claim not found or not owned by you')
+
   await db
     .update(claims)
-    .set({ status })
-    .where(eq(claims.id, claimId))
+    .set({ status: result.data.status })
+    .where(eq(claims.id, result.data.claimId))
 
   revalidatePath('/claims')
   revalidatePath(`/claims/${claimId}`)
@@ -73,16 +126,40 @@ export async function generateClaimPreCheck(
   description: string,
   policyData:  string
 ): Promise<string> {
+  const agent = await getOrCreateAgent()
+  if (!agent) throw new Error('Not authenticated')
+
+  const result = GeneratePreCheckSchema.safeParse({ claimId, description, policyData })
+  if (!result.success) {
+    const firstIssue = result.error.issues?.[0]
+    throw new Error(firstIssue?.message || 'Validation failed')
+  }
+
+  // Verify ownership
+  const claim = await db
+    .select()
+    .from(claims)
+    .innerJoin(policies, eq(claims.policyId, policies.id))
+    .where(
+      and(
+        eq(claims.id, result.data.claimId),
+        eq(policies.agentId, agent.id)
+      )
+    )
+    .limit(1)
+
+  if (claim.length === 0) throw new Error('Claim not found or not owned by you')
+
   try {
     const prompt = `You are an expert Indian insurance claims advisor.
 
 A client wants to file a claim. Analyze if this claim is likely to be approved based on the policy details.
 
 POLICY DETAILS:
-${policyData}
+${result.data.policyData}
 
 CLAIM DESCRIPTION:
-${description}
+${result.data.description}
 
 Provide a structured analysis with:
 1. Likely Outcome (Approved / Partial / Rejected) with confidence percentage
@@ -93,14 +170,14 @@ Provide a structured analysis with:
 
 Keep it concise, practical, and India-specific. Plain text, no markdown.`
 
-    const result = await model.generateContent(prompt)
-    const text   = result.response.text()
+    const response = await model.generateContent(prompt)
+    const text     = response.response.text()
 
     // Save prediction to DB
     await db
       .update(claims)
       .set({ predicted: { analysis: text, generatedAt: new Date().toISOString() } })
-      .where(eq(claims.id, claimId))
+      .where(eq(claims.id, result.data.claimId))
 
     revalidatePath(`/claims/${claimId}`)
     return text
@@ -117,13 +194,27 @@ export async function generateClaimEmail(
   description:  string,
   incidentDate: string
 ): Promise<string> {
-  try {
-    const prompt = `Write a professional claim intimation email from an insurance agent to ${insurer}.
+  // No DB access, so no ownership check needed, but still validate input
+  const result = GenerateEmailSchema.safeParse({
+    clientName,
+    policyNumber,
+    insurer,
+    description,
+    incidentDate: incidentDate || '',
+  })
 
-Client: ${clientName}
-Policy Number: ${policyNumber}
-Incident Date: ${incidentDate}
-Claim Description: ${description}
+  if (!result.success) {
+    const firstIssue = result.error.issues?.[0]
+    throw new Error(firstIssue?.message || 'Validation failed')
+  }
+
+  try {
+    const prompt = `Write a professional claim intimation email from an insurance agent to ${result.data.insurer}.
+
+Client: ${result.data.clientName}
+Policy Number: ${result.data.policyNumber}
+Incident Date: ${result.data.incidentDate || 'Not provided'}
+Claim Description: ${result.data.description}
 
 The email should:
 - Be formal and professional
@@ -134,16 +225,16 @@ The email should:
 
 Return only the email body. No subject line. No markdown.`
 
-    const result = await model.generateContent(prompt)
-    return result.response.text()
+    const response = await model.generateContent(prompt)
+    return response.response.text()
 
   } catch {
     return `Dear Claims Team,
 
-I am writing to intimate a claim on behalf of my client ${clientName} (Policy No: ${policyNumber}).
+I am writing to intimate a claim on behalf of my client ${result.data.clientName} (Policy No: ${result.data.policyNumber}).
 
-Incident Date: ${incidentDate}
-Details: ${description}
+Incident Date: ${result.data.incidentDate || 'Not provided'}
+Details: ${result.data.description}
 
 Kindly register this claim and provide a claim reference number at the earliest. Please also assign a TPA/surveyor if required.
 

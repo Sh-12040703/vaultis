@@ -69,6 +69,33 @@ export async function reconcileStatement(
         }
     }
 
+    // After: if (!file || file.size === 0) check
+    // Add this:
+
+    const ALLOWED_EXTENSIONS = ['.pdf', '.xlsx', '.xls', '.csv']
+    const MAX_SIZE = 10 * 1024 * 1024 // 10MB
+
+    const fileExtension = '.' + file.name.split('.').pop()?.toLowerCase()
+
+    if (!ALLOWED_EXTENSIONS.includes(fileExtension)) {
+        return {
+            success: false, insurer: '', statementDate: '',
+            lines: [], totalExpected: 0, totalReceived: 0,
+            totalShort: 0, totalTDS: 0,
+            errors: ['Only PDF, Excel or CSV files accepted'],
+        }
+    }
+
+    if (file.size > MAX_SIZE) {
+        return {
+            success: false, insurer: '', statementDate: '',
+            lines: [], totalExpected: 0, totalReceived: 0,
+            totalShort: 0, totalTDS: 0,
+            errors: ['File too large. Maximum 10MB allowed'],
+        }
+    }
+
+
     // Convert file to base64 for Gemini
     const buffer = await file.arrayBuffer()
     const mimeType = file.type || 'application/pdf'

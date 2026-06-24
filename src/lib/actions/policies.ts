@@ -1,47 +1,79 @@
 'use server'
 
+import { z } from 'zod'
 import { getOrCreateAgent } from './agent'
 import { db } from '@/lib/db'
-import { policies, renewals } from '@/lib/db/schema'
+import { policies, renewals, clients } from '@/lib/db/schema'
+import { eq, and } from 'drizzle-orm'
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
+
+const AddPolicySchema = z.object({
+  clientId:     z.string().uuid('Invalid client'),
+  policyNumber: z.string().min(1).max(100).trim(),
+  insurer:      z.string().min(1).max(100).trim(),
+  type:         z.enum(['health', 'motor', 'life', 'term', 'commercial', 'travel', 'home', 'other']),
+  premium:      z.string().refine(v => !isNaN(Number(v)) && Number(v) > 0, 'Invalid premium'),
+  sumInsured:   z.string().optional().or(z.literal('')),
+  startDate:    z.string().optional().or(z.literal('')),
+  expiryDate:   z.string().min(1, 'Expiry date required'),
+})
 
 export async function addPolicy(formData: FormData) {
   const agent = await getOrCreateAgent()
   if (!agent) throw new Error('Not authenticated')
 
-  const clientId     = formData.get('clientId') as string
-  const policyNumber = formData.get('policyNumber') as string
-  const insurer      = formData.get('insurer') as string
-  const type         = formData.get('type') as string
-  const premium      = formData.get('premium') as string
-  const sumInsured   = formData.get('sumInsured') as string
-  const startDate    = formData.get('startDate') as string
-  const expiryDate   = formData.get('expiryDate') as string
+  const result = AddPolicySchema.safeParse({
+    clientId:     formData.get('clientId'),
+    policyNumber: formData.get('policyNumber'),
+    insurer:      formData.get('insurer'),
+    type:         formData.get('type'),
+    premium:      formData.get('premium'),
+    sumInsured:   formData.get('sumInsured') || '',
+    startDate:    formData.get('startDate')  || '',
+    expiryDate:   formData.get('expiryDate'),
+  })
 
-  // Validation
-  if (!policyNumber || !insurer || !type || !premium || !expiryDate) {
-    throw new Error('Please fill all required fields')
+  if (!result.success) {
+    const firstIssue = result.error.issues?.[0]
+    throw new Error(firstIssue?.message || 'Validation failed')
   }
 
-  // Save policy
+  const { clientId, policyNumber, insurer, type,
+    premium, sumInsured, startDate, expiryDate } = result.data
+
+  // Ownership check — verify client belongs to this agent
+  const clientRows = await db
+    .select()
+    .from(clients)
+    .where(
+      and(
+        eq(clients.id,      clientId),
+        eq(clients.agentId, agent.id)
+      )
+    )
+    .limit(1)
+
+  if (clientRows.length === 0) {
+    throw new Error('Client not found')
+  }
+
   const newPolicy = await db
     .insert(policies)
     .values({
       clientId,
       agentId:      agent.id,
-      policyNumber: policyNumber.trim(),
-      insurer:      insurer.trim(),
+      policyNumber,
+      insurer,
       type,
-      premium:      premium,
+      premium,
       sumInsured:   sumInsured || null,
-      startDate:    startDate || null,
+      startDate:    startDate  || null,
       expiryDate,
       status:       'active',
     })
     .returning()
 
-  // Auto-create a renewal record for this policy
   await db.insert(renewals).values({
     policyId: newPolicy[0].id,
     dueDate:  expiryDate,

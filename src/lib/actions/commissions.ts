@@ -1,36 +1,52 @@
 'use server'
 
+import { z } from 'zod'
 import { getOrCreateAgent } from './agent'
 import { db } from '@/lib/db'
 import { commissions } from '@/lib/db/schema'
+import { eq } from 'drizzle-orm'
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
+
+const AddCommissionSchema = z.object({
+  policyId:     z.string().uuid('Invalid policy ID'),
+  expectedAmt:  z.string().refine(v => !isNaN(Number(v)) && Number(v) >= 0, 'Expected amount must be a valid number'),
+  receivedAmt:  z.string().refine(v => !isNaN(Number(v)) && Number(v) >= 0, 'Received amount must be a valid number'),
+  tdsDeducted:  z.string().optional().default('0').refine(v => !isNaN(Number(v)) && Number(v) >= 0, 'TDS must be a valid number'),
+  paymentDate:  z.string().min(1, 'Payment date is required'),
+  fyYear:       z.string().optional().or(z.literal('')),
+  quarter:      z.string().optional().or(z.literal('')),
+})
 
 export async function addCommission(formData: FormData) {
   const agent = await getOrCreateAgent()
   if (!agent) throw new Error('Not authenticated')
 
-  const policyId    = formData.get('policyId') as string
-  const expectedAmt = formData.get('expectedAmt') as string
-  const receivedAmt = formData.get('receivedAmt') as string
-  const tdsDeducted = formData.get('tdsDeducted') as string || '0'
-  const paymentDate = formData.get('paymentDate') as string
-  const fyYear      = formData.get('fyYear') as string
-  const quarter     = formData.get('quarter') as string
+  const result = AddCommissionSchema.safeParse({
+    policyId:     formData.get('policyId'),
+    expectedAmt:  formData.get('expectedAmt'),
+    receivedAmt:  formData.get('receivedAmt'),
+    tdsDeducted:  formData.get('tdsDeducted') || '0',
+    paymentDate:  formData.get('paymentDate'),
+    fyYear:       formData.get('fyYear') || '',
+    quarter:      formData.get('quarter') || '',
+  })
 
-  if (!policyId || !expectedAmt || !receivedAmt || !paymentDate) {
-    throw new Error('Please fill all required fields')
+  if (!result.success) {
+    const firstIssue = result.error.issues?.[0]
+    throw new Error(firstIssue?.message || 'Validation failed')
   }
+
+  const { policyId, expectedAmt, receivedAmt, tdsDeducted, paymentDate, fyYear, quarter } = result.data
 
   const expected = parseFloat(expectedAmt)
   const received = parseFloat(receivedAmt)
-  const tds      = parseFloat(tdsDeducted) || 0
-  const diff     = expected - received
+  const diff = expected - received
 
   // Auto-determine status
   let status = 'matched'
   if (Math.abs(diff) > 50) {
-    status = received < expected ? 'short' : 'matched'
+    status = diff > 50 ? 'short' : 'matched'
   }
 
   // Calculate current financial year if not provided
@@ -39,7 +55,6 @@ export async function addCommission(formData: FormData) {
     ? `${date.getFullYear()}-${String(date.getFullYear() + 1).slice(2)}`
     : `${date.getFullYear() - 1}-${String(date.getFullYear()).slice(2)}`
 
-  const q = date.getMonth()
   const quarterMap: Record<number, string> = {
     3: 'Q1', 4: 'Q1', 5: 'Q1',
     6: 'Q2', 7: 'Q2', 8: 'Q2',
@@ -50,8 +65,8 @@ export async function addCommission(formData: FormData) {
   await db.insert(commissions).values({
     policyId,
     agentId:     agent.id,
-    expectedAmt: expectedAmt,
-    receivedAmt: receivedAmt,
+    expectedAmt,
+    receivedAmt,
     tdsDeducted: tdsDeducted || '0',
     paymentDate,
     fyYear:      fyYear || year,
@@ -63,6 +78,11 @@ export async function addCommission(formData: FormData) {
   redirect('/commissions')
 }
 
+const UpdateStatusSchema = z.object({
+  commissionId: z.string().uuid('Invalid commission ID'),
+  status:       z.enum(['matched', 'short', 'overpaid', 'disputed', 'pending']),
+})
+
 export async function updateCommissionStatus(
   commissionId: string,
   status: string
@@ -70,12 +90,16 @@ export async function updateCommissionStatus(
   const agent = await getOrCreateAgent()
   if (!agent) throw new Error('Not authenticated')
 
-  const { eq } = await import('drizzle-orm')
+  const result = UpdateStatusSchema.safeParse({ commissionId, status })
+  if (!result.success) {
+    const firstIssue = result.error.issues?.[0]
+    throw new Error(firstIssue?.message || 'Validation failed')
+  }
 
   await db
     .update(commissions)
-    .set({ status })
-    .where(eq(commissions.id, commissionId))
+    .set({ status: result.data.status })
+    .where(eq(commissions.id, result.data.commissionId))
 
   revalidatePath('/commissions')
 }
