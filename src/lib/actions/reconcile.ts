@@ -9,7 +9,35 @@ import { revalidatePath } from 'next/cache'
 import * as XLSX from 'xlsx'
 
 const genAI = new GoogleGenerativeAI(process.env.GOOGLE_AI_API_KEY!)
-const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' })
+
+// ─── Resilient Gemini wrapper ──────────────────────────────
+async function generateWithFallback(contents: any[]): Promise<string> {
+  const models = [
+    genAI.getGenerativeModel({ model: 'gemini-2.5-flash' }),
+    genAI.getGenerativeModel({ model: 'gemini-1.5-flash' }),
+    genAI.getGenerativeModel({ model: 'gemini-1.5-flash-8b' }),
+  ]
+
+  for (let attempt = 0; attempt < 3; attempt++) {
+    try {
+      const m = models[Math.min(attempt, models.length - 1)]
+      const result = await m.generateContent(contents)
+      return result.response.text()
+    } catch (err: any) {
+      const is503 =
+        err?.message?.includes('503') ||
+        err?.message?.includes('Service Unavailable') ||
+        err?.message?.includes('high demand')
+
+      if (is503 && attempt < 2) {
+        await new Promise(r => setTimeout(r, 2000))
+        continue
+      }
+      throw err
+    }
+  }
+  throw new Error('All Gemini models unavailable')
+}
 
 type ExtractedLine = {
     policy_number: string
@@ -69,11 +97,8 @@ export async function reconcileStatement(
         }
     }
 
-    // After: if (!file || file.size === 0) check
-    // Add this:
-
     const ALLOWED_EXTENSIONS = ['.pdf', '.xlsx', '.xls', '.csv']
-    const MAX_SIZE = 10 * 1024 * 1024 // 10MB
+    const MAX_SIZE = 10 * 1024 * 1024
 
     const fileExtension = '.' + file.name.split('.').pop()?.toLowerCase()
 
@@ -95,8 +120,6 @@ export async function reconcileStatement(
         }
     }
 
-
-    // Convert file to base64 for Gemini
     const buffer = await file.arrayBuffer()
     const mimeType = file.type || 'application/pdf'
 
@@ -106,17 +129,14 @@ export async function reconcileStatement(
     let geminiContent: any[]
 
     if (isExcel) {
-        // Convert Excel to CSV text — Gemini reads text, not binary spreadsheets
         const workbook = XLSX.read(buffer, { type: 'buffer' })
         const sheetName = workbook.SheetNames[0]
         const sheet = workbook.Sheets[sheetName]
         const csvText = XLSX.utils.sheet_to_csv(sheet)
-
         geminiContent = [
             `Here is the commission statement data extracted from an Excel file, in CSV format:\n\n${csvText}`,
         ]
     } else {
-        // PDF or image — Gemini can read these directly
         const base64 = Buffer.from(buffer).toString('base64')
         geminiContent = [
             {
@@ -128,7 +148,6 @@ export async function reconcileStatement(
         ]
     }
 
-    // Step 1 — Gemini extracts commission lines
     let extractedLines: ExtractedLine[] = []
     let statementDate = new Date().toISOString().split('T')[0]
     let detectedInsurer = insurer
@@ -169,13 +188,12 @@ Rules:
 - If a field is not found use 0 for numbers or empty string for text
 - Return ONLY the JSON object nothing else`
 
-        const result = await model.generateContent([
+        const resultText = await generateWithFallback([
             ...geminiContent,
             prompt,
         ])
 
-        const raw = result.response.text()
-        const cleaned = raw.replace(/```json\n?|\n?```/g, '').trim()
+        const cleaned = resultText.replace(/```json\n?|\n?```/g, '').trim()
         const parsed = JSON.parse(cleaned)
 
         extractedLines = parsed.lines || []
@@ -200,9 +218,6 @@ Rules:
         }
     }
 
-    // Step 2 — Get agent rate cards for this insurer
-    // Step 2 — Get agent rate cards
-    // Step 2 — Get ALL agent rate cards (matched per line below)
     const allAgentRates = await db
         .select()
         .from(rateCards)
@@ -213,31 +228,21 @@ Rules:
             )
         )
 
-    // Step 3 — Get agent policies for matching
     const agentPolicies = await db
         .select()
         .from(policies)
         .where(eq(policies.agentId, agent.id))
 
-    // Step 4 — Reconcile each line
-    // IMPORTANT: Rule engine does all math — no AI for financial calculations
     const reconciledLines: ReconciliationLine[] = []
 
     for (const line of extractedLines) {
-        // Match policy by policy number
         const matchedPolicy = agentPolicies.find(
             p => p.policyNumber.toLowerCase().trim() ===
                 line.policy_number.toLowerCase().trim()
         )
 
-        // Find rate card — try year 1 first then renewal
-        // Find rate card
-        // First try to match by line's insurer + product type
-        // Fall back to any rate card with matching product type
-        // Get insurer for this specific line — falls back to overall statement insurer
         const lineInsurer = line.insurer || detectedInsurer || insurer
 
-        // Match rate card: exact insurer + product type first, then product type only
         const rateCard =
             allAgentRates.find(
                 r => r.insurer === lineInsurer && r.productType === line.product_type
@@ -246,7 +251,6 @@ Rules:
                 r => r.productType === line.product_type
             )
 
-        // Pure arithmetic — never AI
         const expectedRate = rateCard ? Number(rateCard.ratePct) : 0
         const expectedGross = expectedRate > 0
             ? Math.round((line.gross_premium * expectedRate) / 100 * 100) / 100
@@ -269,7 +273,6 @@ Rules:
             status,
         })
 
-        // Step 5 — Save to commissions table
         if (matchedPolicy) {
             try {
                 const now = new Date()
@@ -301,7 +304,6 @@ Rules:
         }
     }
 
-    // Totals — pure arithmetic
     const totalExpected = reconciledLines.reduce((s, l) => s + l.expected_net, 0)
     const totalReceived = reconciledLines.reduce((s, l) => s + l.net_paid, 0)
     const totalShort = reconciledLines
@@ -324,7 +326,6 @@ Rules:
     }
 }
 
-// Generate dispute email using Gemini
 export async function generateDisputeEmail(
     agentName: string,
     insurer: string,
@@ -352,11 +353,9 @@ The email should:
 
 Return only the email body text. No subject line. No markdown.`
 
-        const result = await model.generateContent(prompt)
-        return result.response.text()
+        return await generateWithFallback([prompt])
 
     } catch {
-        // Fallback template if Gemini fails
         return `Dear Commission Team,
 
 I am writing regarding discrepancies in my recent commission statement.

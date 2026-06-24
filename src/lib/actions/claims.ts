@@ -10,9 +10,37 @@ import { redirect } from 'next/navigation'
 import { GoogleGenerativeAI } from '@google/generative-ai'
 
 const genAI = new GoogleGenerativeAI(process.env.GOOGLE_AI_API_KEY!)
-const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' })
 
-// ─── Schemas ───────────────────────────────────────────────
+// ─── Resilient Gemini wrapper ──────────────────────────────
+async function generateWithFallback(contents: any[]): Promise<string> {
+  const models = [
+    genAI.getGenerativeModel({ model: 'gemini-2.5-flash' }),
+    genAI.getGenerativeModel({ model: 'gemini-1.5-flash' }),
+    genAI.getGenerativeModel({ model: 'gemini-1.5-flash-8b' }),
+  ]
+
+  for (let attempt = 0; attempt < 3; attempt++) {
+    try {
+      const m = models[Math.min(attempt, models.length - 1)]
+      const result = await m.generateContent(contents)
+      return result.response.text()
+    } catch (err: any) {
+      const is503 =
+        err?.message?.includes('503') ||
+        err?.message?.includes('Service Unavailable') ||
+        err?.message?.includes('high demand')
+
+      if (is503 && attempt < 2) {
+        await new Promise(r => setTimeout(r, 2000)) // wait 2s before retry
+        continue
+      }
+      throw err
+    }
+  }
+  throw new Error('All Gemini models unavailable')
+}
+
+// ─── Schemas (unchanged) ────────────────────────────────────
 
 const AddClaimSchema = z.object({
   policyId:     z.string().uuid('Invalid policy ID'),
@@ -58,7 +86,6 @@ export async function addClaim(formData: FormData) {
 
   const { policyId, incidentDate, description } = result.data
 
-  // Verify policy belongs to this agent
   const policy = await db
     .select()
     .from(policies)
@@ -97,7 +124,6 @@ export async function updateClaimStatus(claimId: string, status: string) {
     throw new Error(firstIssue?.message || 'Validation failed')
   }
 
-  // Verify ownership – the claim must belong to a policy of this agent
   const claim = await db
     .select()
     .from(claims)
@@ -135,7 +161,6 @@ export async function generateClaimPreCheck(
     throw new Error(firstIssue?.message || 'Validation failed')
   }
 
-  // Verify ownership
   const claim = await db
     .select()
     .from(claims)
@@ -170,10 +195,8 @@ Provide a structured analysis with:
 
 Keep it concise, practical, and India-specific. Plain text, no markdown.`
 
-    const response = await model.generateContent(prompt)
-    const text     = response.response.text()
+    const text = await generateWithFallback([prompt])
 
-    // Save prediction to DB
     await db
       .update(claims)
       .set({ predicted: { analysis: text, generatedAt: new Date().toISOString() } })
@@ -194,7 +217,6 @@ export async function generateClaimEmail(
   description:  string,
   incidentDate: string
 ): Promise<string> {
-  // No DB access, so no ownership check needed, but still validate input
   const result = GenerateEmailSchema.safeParse({
     clientName,
     policyNumber,
@@ -225,8 +247,7 @@ The email should:
 
 Return only the email body. No subject line. No markdown.`
 
-    const response = await model.generateContent(prompt)
-    return response.response.text()
+    return await generateWithFallback([prompt])
 
   } catch {
     return `Dear Claims Team,
